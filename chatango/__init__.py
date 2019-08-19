@@ -4,3 +4,4 @@ from .exceptions import *
 from .pm import *
 from .utils import *
 from .user import *
+from .connection import *

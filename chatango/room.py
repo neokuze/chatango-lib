@@ -2,10 +2,12 @@
 Module for room related stuff
 """
 
+from .utils import gen_uid
+from .connection import Connection
 import aiohttp
 import asyncio
 import sys
-
+import typing
 specials = {
     'mitvcanal': 56, 'animeultimacom': 34, 'cricket365live': 21,
     'pokemonepisodeorg': 22, 'animelinkz': 20, 'sport24lt': 56,
@@ -67,7 +69,7 @@ def get_server(group):
     return f"s{sn}.chatango.com"
 
 
-class Room:
+class Room(Connection):
     def __new__(cls, client, name: str):
         name = name.lower()
         if name not in client._rooms:
@@ -79,75 +81,19 @@ class Room:
     def __init__(self, client, name: str):
         if name in client._rooms:
             return
+        super().__init__(client)
         self.name = name
-        self.client = client
         self.server = get_server(name)
-        self._recv_task = None
-        self._ping_task = None
-        self._connection = None
-        self._first_command = True
+        self._uid = gen_uid()
+        self._user = None
 
-    async def _do_recv(self):
-        while True:
-            message = await self._connection.receive()
-            assert message.type is aiohttp.WSMsgType.TEXT
-            if not message.data:
-                # pong
-                cmd = "pong"
-                args = ""
-            else:
-                cmd, _, args = message.data.partition(":")
-            if hasattr(self, f"_rcmd_{cmd}"):
-                await getattr(self, f"_rcmd_cmd")(args)
-            elif __debug__:
-                print("Unhandled received command", cmd, file=sys.stderr)
-
-    async def _do_ping(self):
-        await asyncio.sleep(20)
-        # ping is an empty message
-        await self._send_command("")
-        await self.client._call_event("ping", self)
-        self._ping_task = asyncio.create_task(self._do_ping())
-
-    async def _send_command(self, cmd: str, *args: str):
-        if self._first_command:
-            terminator = "\0"
-            self._first_command = False
-        else:
-            terminator = "\r\n\0"
-        message = cmd + ":".join(args) + terminator
-        await self._connection.send_str(message)
-
-    async def connect(self, user_name=None, password=None):
-        assert not self.connected
+    async def _connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
+        self._user = user_name
         self._connection = await self.client.aiohttp_session.ws_connect(
             f"ws://{self.server}:8080/",
             origin="http://st.chatango.com"
         )
-        self._first_command = True
-        await self._send_command("v")
-        self._recv_task = asyncio.create_task(self._do_recv())
-        self._ping_task = asyncio.create_task(self._do_ping())
-        await self.client._call_event("connect", self)
+        await self._send_command("bauth", self.name, self._uid, user_name or "", password or "")
 
-    async def disconnect(self):
-        assert self.connected
-        await self._connection.disconnect()
-        self._recv_task.cancel()
-        self._ping_task.cancel()
-        try:
-            await self._recv_task
-        except asyncio.CancelledError:
-            pass
-        try:
-            await self._ping_task
-        except asyncio.CancelledError:
-            pass
-        self._recv_task = None
-        self._connection = None
-        self._ping_task = None
-        await self.client._call_event("disconnect", self)
-
-    @property
-    def connected(self):
-        return self._recv_task is not None
+    def __repr__(self):
+        return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"

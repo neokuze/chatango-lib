@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import inspect
+import typing
 
 from .pm import PM
 from .room import Room
@@ -8,7 +9,7 @@ from .exceptions import AlreadyConnectedError
 
 
 class Client:
-    def __init__(self, aiohttp_session=None):
+    def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None):
         if aiohttp_session is None:
             aiohttp_session = aiohttp.ClientSession()
 
@@ -40,9 +41,11 @@ class Client:
 
     async def start(self):
         self._running = True
+        if self._default_user_name and self._default_password:
+            await self.pm.connect(self._default_user_name, self._default_password)
         await self._call_event("init")
 
-    def default_user(self, user_name: str, password: str = None):
+    def default_user(self, user_name: str, password: typing.Optional[str] = None):
         self._default_user_name = user_name
         self._default_password = password
 
@@ -56,7 +59,7 @@ class Client:
     def running(self):
         return self._running
 
-    async def on_event(self, event: str, *args, **kwargs):
+    async def on_event(self, event: str, *args: typing.Any, **kwargs: typing.Dict[str, typing.Any]):
         pass
 
     async def _call_event(self, event: str, *args, **kwargs):
