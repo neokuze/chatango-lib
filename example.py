@@ -20,7 +20,7 @@ class MyBot(chatango.Client):
             cmd, args = message.body.split(" ",1)[0], []
         cmd = cmd[:-1]
         issuffix = message.body[len(cmd):len(cmd)+len(self.suffix)] == self.suffix
-        print(f"[{message.room.name}]-[{issuffix}]-[{message.user}]: {message.body}")
+        print(f"[{message._room.name}]-[{issuffix}]-[{message.user}]: {message.body}")
         if issuffix:
             if cmd == "eval" and message.user.lower() in owners and args:
                 try:
@@ -30,12 +30,12 @@ class MyBot(chatango.Client):
                     else:
                         ret = eval(" ".join(args))
                     if ret == None:
-                        await message.room.send_message("Done.")
-                    else: await message.room.send_message(str(ret))
+                        await message._room.send_message("Done.")
+                    else: await message._room.send_message(str(ret))
                 except Exception as e:
                     print(str(e))
             elif cmd == "hello": # using version
-                await message.room.send_message(f"Hello @{message.user}\rI\'m running chatango-lib {chatango.ver}'")
+                await message._room.send_message(f"Hello @{message.user}\rI\'m running chatango-lib {chatango.ver}'")
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
