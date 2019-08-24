@@ -20,7 +20,7 @@ class MyBot(chatango.Client):
             cmd, args = message.body.split(" ",1)[0], []
         cmd = cmd[:-1]
         issuffix = message.body[len(cmd):len(cmd)+len(self.suffix)] == self.suffix
-        print(f"[{message.room.name}]-[{issuffix}]-[{message.author}]: {message.body}")
+        print(f"[{message.room.name}]-[{issuffix}]-[{message.user}]: {message.body}")
         if issuffix:
             if cmd == "eval" and message.user.lower() in owners and args:
                 try:
