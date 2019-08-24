@@ -86,6 +86,9 @@ class Room(Connection):
         self.server = get_server(name)
         self._uid = gen_uid()
         self._user = None
+        
+        self.user_count = 0
+        self._history = dict()
 
     async def _connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         self._user = user_name
@@ -97,3 +100,13 @@ class Room(Connection):
 
     def __repr__(self):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
+
+    async def send_message(self, message):
+        if len(message) > 0:
+        	e = "000000"
+        	name_color = "<n" + e + "/>"
+        	font_size = 11
+        	font_face = 1
+        	font_color = "000000"
+        	message = name_color + "<f x{}{}=\"{}\">".format(str(font_size), font_color,font_face) + "\r".join(message) + "</f>"
+        	await self._send_command("bm", "chlb", message)

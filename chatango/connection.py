@@ -6,7 +6,7 @@ import traceback
 
 from .exceptions import AlreadyConnectedError, NotConnectedError
 from .utils import virtual
-
+from .message import for_room as Message
 
 class Connection:
     def __init__(self, client):
@@ -60,10 +60,10 @@ class Connection:
 
     async def _send_command(self, *args: str):
         if self._first_command:
-            terminator = "\0"
+            terminator = "\x00"
             self._first_command = False
         else:
-            terminator = "\r\n\0"
+            terminator = "\r\n"
         message = ":".join(args) + terminator
         await self._connection.send_str(message)
 
@@ -90,8 +90,36 @@ class Connection:
                 except:
                     if __debug__:
                         print("Error while handling command",
-                              cmd, file=sys.stderr)
+                            cmd, file=sys.stderr)
                         traceback.print_exc(file=sys.stderr)
             elif __debug__:
                 print("Unhandled received command", cmd, file=sys.stderr)
         raise ConnectionAbortedError
+
+    async def _rcmd_ok(room, args):
+        args = args.split(":")
+        room.owner = args[0]
+        room.author_id = args[1]
+        room.user_name = args[3]
+
+    async def _rcmd_i(room, args):
+        await room._rcmd_b(args)
+    async def _rcmd_inited(room, args):
+        pass
+    async def _rcmd_pong(room, args):
+        await room.client._call_event("pong")
+    async def _rcmd_n(room, user_count):
+        room.user_count = int(user_count, 16)
+
+    async def _rcmd_b(room, args):
+        message = Message(room, args)
+        room._history.setdefault(message.msgid, message)
+    
+    async def _rcmd_u(room, args):
+        old_id, new_id = args.split(":")
+        message = room._history.get(old_id, None)
+        while isinstance(message, type(None)):
+            await asyncio.sleep(0.1)
+            message = room._history.get(old_id, None)
+        message._msgid = new_id
+        await room.client._call_event("message", message)
