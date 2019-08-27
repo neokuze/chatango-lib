@@ -114,14 +114,7 @@ class Room(Connection):
         self._maxlen = 2900
 
     def _addHistory(self, msg):
-        """
-        Agregar un mensaje al historial
-        @param msg: El mensaje TODO
-        """
-        if len(self._history) == self._maxlen:
-            rest = self._history.popleft()
-            rest.detach()
-        self._history.append(msg)
+        pass
 
     async def _connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         self._user = user_name
