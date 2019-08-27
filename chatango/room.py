@@ -34,6 +34,26 @@ tsweights = [
     (81, 116), (82, 116), (83, 116), (84, 116)
 ]
 
+ROOM_FLAGS = {
+    "list_taxonomy":                1, "noanons":              4, "noflagging":          8,
+    "nocounter":                   16, "noimages":            32, "nolinks":            64,
+    "novideos":                   128, "nostyledtext":       256, "nolinkschatango":   512,
+    "nobrdcastmsgwithbw":        1024, "ratelimitregimeon": 2048, "channelsdisabled": 8192,
+    "nlp_singlemsg":            16384, "nlp_msgqueue":     32768, "broadcast_mode":  65536,
+    "closed_if_no_mods":       131072, "is_closed":       262144, "show_mod_icons": 524288,
+    "mods_choose_visibility": 1048576, "nlp_ngram":      2097152, "no_proxies":    4194304,
+    "has_xml":              268435456, "unsafe":       536870912
+    }
+
+MODERATOR_FLAGS = {
+    "deleted":           1, "edit_mods":                 2, "edit_mod_visibility":   4,
+    "edit_bw":           8, "edit_restrictions":        16, "edit_group":           32,
+    "see_counter":      64, "see_mod_channel":         128, "see_mod_actions":     256,
+    "edit_nlp":        512, "edit_gp_annc":           1024, "edit_admins":        2048,
+    "edit_supermods": 4096, "no_sending_limitations": 8192, "see_ips":           16384,
+    "close_group":   32768, "can_broadcast":         65536, "mod_icon_visible": 131072,
+    "is_staff":     262144, "staff_icon_visible":   524288
+    }
 
 def get_server(group):
     """
@@ -86,9 +106,22 @@ class Room(Connection):
         self.server = get_server(name)
         self._uid = gen_uid()
         self._user = None
-        
-        self.user_count = 0
+        self._unid = str()
+        self._mqueue = dict()
+        self._msgs = dict()
+        self._usercount = 0
         self._history = dict()
+        self._maxlen = 2900
+
+    def _addHistory(self, msg):
+        """
+        Agregar un mensaje al historial
+        @param msg: El mensaje TODO
+        """
+        if len(self._history) == self._maxlen:
+            rest = self._history.popleft()
+            rest.detach()
+        self._history.append(msg)
 
     async def _connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         self._user = user_name
@@ -97,7 +130,7 @@ class Room(Connection):
             origin="http://st.chatango.com"
         )
         await self._send_command("bauth", self.name, self._uid, user_name or "", password or "")
-
+    
     def __repr__(self):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
 

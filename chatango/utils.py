@@ -6,6 +6,10 @@ import asyncio
 import random
 import typing
 
+def has_flag(flags: str or int, flag: int) -> bool:
+    assert type(flags) in (str, int), "Invalid flags"
+    assert type(flag) is int, "Invalid flag"
+    return int(flags) & flag
 
 def virtual(func: typing.Callable) -> typing.Callable:
     """
@@ -22,6 +26,7 @@ def virtual(func: typing.Callable) -> typing.Callable:
             raise NotImplementedError
 
     wrapper = functools.wraps(func)(wrapper)
+    print(func, wrapper)
     return wrapper
 
 
