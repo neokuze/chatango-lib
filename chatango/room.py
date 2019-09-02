@@ -140,13 +140,13 @@ class Room(Connection):
 
     async def send_message(self, message):
         if len(message) > 0:
-        	e = "000000" # hex name color
-        	name_color = "<n" + e + "/>"
-        	font_size = 11
-        	font_face = 1
-        	font_color = "000000"
+            e = "000000"  # hex name color
+            name_color = "<n" + e + "/>"
+            font_size = 11
+            font_face = 1
+            font_color = "000000"
             message = f'{name_color} <f x{font_size}{font_color}="{font_face}">{message}</f>'
-        	await self._send_command("bm", "chlb", message)
+            await self._send_command("bm", "chlb", message)
 
     async def _rcmd_ok(self, args):
         self.owner = args[0]
@@ -159,14 +159,16 @@ class Room(Connection):
     async def _rcmd_pong(self):
         await self.client._call_event(self, "pong")
 
-    async def _rcmd_n(self, user_count):
-        self.user_count = int(user_count, 16)
+    async def _rcmd_n(self, args):
+        self.user_count = int(args[0], 16)
+
     async def _rcmd_i(self, args):
         await self._rcmd_b(args)
+
     async def _rcmd_b(self, args):
         _time = float(args[0])
         name, tname, puid, unid, msgid, ip, flags = args[1:8]
-        body = args[9:]
+        body = ":".join(args[9:])
         msg = Message()
         msg._room = self
         msg._time = float(_time)
@@ -178,10 +180,11 @@ class Room(Connection):
         msg._ip = ip
         msg._body = html.unescape(
             re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
-            )
+        )
         msg._flags = MessageFlags(int(flags))
         self._mqueue[msg._msgid] = msg
-    async def _rcmd_u(self, arg):
+
+    async def _rcmd_u(self, args):
         if args[0] in self._mqueue:
             msg = self._mqueue.pop(args[0])
             if msg._user != self._user:
