@@ -28,7 +28,7 @@ class MyBot(chatango.Client):
             f"[{message._room.name}]-[{issuffix}]-[{message._user}]: {message._body}")
         if issuffix:
             if cmd == "hello":  # using version
-                await message._room.send_message(f"Hello @{message._user}\rI\'m running chatango-lib {chatango.ver}\nOwners:{', '.join(owners)}")
+                await message._room.send_message(f"Hello! {message._user}")
 
 
 if __name__ == "__main__":
