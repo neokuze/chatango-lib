@@ -1,11 +1,26 @@
-import html, re
-MESSAGE_FLAGS = {
-    "premium":           4, "bg_on":            8, "media_on":         16,
-    "censored":         32, "show_mod_icon":   64, "show_staff_icon": 128,
-    "default_icon":     64, "channel_red":    256, "channel_orange":  512,
-    "channel_green":  1024, "channel_cyan":  2048, "channel_blue":   4096,
-    "channel_purple": 8192, "channel_pink": 16384, "channel_mod":   32768
-    }
+import html
+import re
+import enum
+
+
+class MessageFlags(enum.IntFlag):
+    PREMIUM = 1 << 2
+    BG_ON = 1 << 3
+    MEDIA_ON = 1 << 4
+    CENSORED = 1 << 5
+    SHOW_MOD_ICON = 1 << 6
+    SHOW_STAFF_ICON = 1 << 7
+    DEFAULT_ICON = 1 << 6
+    CHANNEL_RED = 1 << 8
+    CHANNEL_ORANGE = 1 << 9
+    CHANNEL_GREEN = 1 << 10
+    CHANNEL_CYAN = 1 << 11
+    CHANNEL_BLUE = 1 << 12
+    CHANNEL_PURPLE = 1 << 13
+    CHANNEL_PINK = 1 << 14
+    CHANNEL_MOD = 1 << 15
+
+
 class Message(object):
     def __init__(self):
         self._msgid = None
@@ -27,7 +42,7 @@ class Message(object):
             self._room = room
             self._msgid = msgid
             self._room._msgs.update({msgid: self})
-            
+
     def detach(self):
         if self._msgid is not None and self._msgid in self._room._msgs:
             self._room._msgs.pop(self._msgid)

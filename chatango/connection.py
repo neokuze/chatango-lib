@@ -5,7 +5,8 @@ import sys
 import traceback
 
 from .exceptions import AlreadyConnectedError, NotConnectedError
-from .utils import virtual
+
+
 class Connection:
     def __init__(self, client):
         self.client = client
@@ -35,9 +36,9 @@ class Connection:
     def connected(self):
         return self._connected
 
-    @virtual
     async def _connect(self, user_name: typing.Optional[str], password: typing.Optional[str]):
         """Responsable of setting self._conneciton to a valid connection"""
+        raise NotImplementedError
 
     async def _disconnect(self):
         await self._connection.disconnect()
@@ -82,13 +83,14 @@ class Connection:
                 args = ""
             else:
                 cmd, _, args = message.data.partition(":")
+            args = args.split(":")
             if hasattr(self, f"_rcmd_{cmd}"):
                 try:
                     await getattr(self, f"_rcmd_{cmd}")(args)
                 except:
                     if __debug__:
                         print("Error while handling command",
-                            cmd, file=sys.stderr)
+                              cmd, file=sys.stderr)
                         traceback.print_exc(file=sys.stderr)
             elif __debug__:
                 print("Unhandled received command", cmd, file=sys.stderr)

@@ -2,14 +2,17 @@
 Module for room related stuff
 """
 
-from .utils import gen_uid, has_flag
+from .utils import gen_uid
 from .connection import Connection
-from .message import Message, MESSAGE_FLAGS
+from .message import Message, MessageFlags
 import aiohttp
 import asyncio
 import sys
 import typing
-import html, re
+import html
+import re
+import enum
+
 specials = {
     'mitvcanal': 56, 'animeultimacom': 34, 'cricket365live': 21,
     'pokemonepisodeorg': 22, 'animelinkz': 20, 'sport24lt': 56,
@@ -36,26 +39,32 @@ tsweights = [
     (81, 116), (82, 116), (83, 116), (84, 116)
 ]
 
-ROOM_FLAGS = {
-    "list_taxonomy":                1, "noanons":              4, "noflagging":          8,
-    "nocounter":                   16, "noimages":            32, "nolinks":            64,
-    "novideos":                   128, "nostyledtext":       256, "nolinkschatango":   512,
-    "nobrdcastmsgwithbw":        1024, "ratelimitregimeon": 2048, "channelsdisabled": 8192,
-    "nlp_singlemsg":            16384, "nlp_msgqueue":     32768, "broadcast_mode":  65536,
-    "closed_if_no_mods":       131072, "is_closed":       262144, "show_mod_icons": 524288,
-    "mods_choose_visibility": 1048576, "nlp_ngram":      2097152, "no_proxies":    4194304,
-    "has_xml":              268435456, "unsafe":       536870912
-    }
 
-MODERATOR_FLAGS = {
-    "deleted":           1, "edit_mods":                 2, "edit_mod_visibility":   4,
-    "edit_bw":           8, "edit_restrictions":        16, "edit_group":           32,
-    "see_counter":      64, "see_mod_channel":         128, "see_mod_actions":     256,
-    "edit_nlp":        512, "edit_gp_annc":           1024, "edit_admins":        2048,
-    "edit_supermods": 4096, "no_sending_limitations": 8192, "see_ips":           16384,
-    "close_group":   32768, "can_broadcast":         65536, "mod_icon_visible": 131072,
-    "is_staff":     262144, "staff_icon_visible":   524288
-    }
+class RoomFlags(enum.IntFlag):
+    LIST_TAXONOMY = 1 << 0
+    NO_ANONS = 1 << 2
+    NO_FLAGGING = 1 << 3
+    NO_COUNTER = 1 << 4
+    NO_IMAGES = 1 << 5
+    NO_LINKS = 1 << 6
+    NO_VIDEOS = 1 << 7
+    NO_STYLED_TEXT = 1 << 8
+    NO_LINKS_CHATANGO = 1 << 9
+    NO_BROADCAST_MSG_WITH_BW = 1 << 10
+    RATE_LIMIT_REGIMEON = 1 << 11
+    CHANNELS_DISABLED = 1 << 13
+    NLP_SINGLEMSG = 1 << 14
+    NLP_MSGQUEUE = 1 << 15
+    BROADCAST_MODE = 1 << 16
+    CLOSED_IF_NO_MODS = 1 << 17
+    IS_CLOSED = 1 << 18
+    SHOW_MOD_ICONS = 1 << 19
+    MODS_CHOOSE_VISIBILITY = 1 << 20
+    NLP_NGRAM = 1 << 21
+    NO_PROXIES = 1 << 22
+    HAS_XML = 1 << 28
+    UNSAFE = 1 << 29
+
 
 def get_server(group):
     """
@@ -125,59 +134,54 @@ class Room(Connection):
             origin="http://st.chatango.com"
         )
         await self._send_command("bauth", self.name, self._uid, user_name or "", password or "")
-    
+
     def __repr__(self):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
 
     async def send_message(self, message):
         if len(message) > 0:
-        	e = "000000"
+        	e = "000000" # hex name color
         	name_color = "<n" + e + "/>"
         	font_size = 11
         	font_face = 1
         	font_color = "000000"
-        	message = name_color + "<f x{}{}=\"{}\">".format(str(font_size), font_color,font_face) + "\r".join(message) + "</f>"
+            message = f'{name_color} <f x{font_size}{font_color}="{font_face}">{message}</f>'
         	await self._send_command("bm", "chlb", message)
 
     async def _rcmd_ok(self, args):
-        args = args.split(":")
         self.owner = args[0]
         self._unid = args[1]
         self._user = args[3]
 
     async def _rcmd_inited(self, args):
         pass
-    async def _rcmd_pong(self, args):
-        await self.client._call_event("pong")
+
+    async def _rcmd_pong(self):
+        await self.client._call_event(self, "pong")
+
     async def _rcmd_n(self, user_count):
         self.user_count = int(user_count, 16)
     async def _rcmd_i(self, args):
         await self._rcmd_b(args)
     async def _rcmd_b(self, args):
-        args = args.split(":")
         _time = float(args[0])
         name, tname, puid, unid, msgid, ip, flags = args[1:8]
-        body = args[9]
+        body = args[9:]
         msg = Message()
         msg._room = self
         msg._time = float(_time)
         msg._user = name or tname
         msg._puid = int(puid)
         msg._tempname = tname
-        msg._msgid = str(msgid)
-        msg._unid = str(unid)
-        msg._ip = str(ip)
+        msg._msgid = msgid
+        msg._unid = unid
+        msg._ip = ip
         msg._body = html.unescape(
             re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
             )
-        for key, value in MESSAGE_FLAGS.items():
-            if has_flag(flags, value):
-                msg._flags[key] = True
-            else:
-                msg._flags[key] = False
+        msg._flags = MessageFlags(int(flags))
         self._mqueue[msg._msgid] = msg
     async def _rcmd_u(self, arg):
-        args = arg.split(":")
         if args[0] in self._mqueue:
             msg = self._mqueue.pop(args[0])
             if msg._user != self._user:
