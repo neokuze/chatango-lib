@@ -3,12 +3,9 @@ import asyncio
 import aiohttp
 import sys
 import traceback
-import re, html
 
 from .exceptions import AlreadyConnectedError, NotConnectedError
-from .utils import virtual, has_flag
-from .message import Message, MESSAGE_FLAGS
-
+from .utils import virtual
 class Connection:
     def __init__(self, client):
         self.client = client
@@ -96,49 +93,3 @@ class Connection:
             elif __debug__:
                 print("Unhandled received command", cmd, file=sys.stderr)
         raise ConnectionAbortedError
-
-    async def _rcmd_ok(room, args):
-        args = args.split(":")
-        room.owner = args[0]
-        room._unid = args[1]
-        room._user = args[3]
-
-    async def _rcmd_inited(room, args):
-        pass
-    async def _rcmd_pong(room, args):
-        await room.client._call_event("pong")
-    async def _rcmd_n(room, user_count):
-        room.user_count = int(user_count, 16)
-    async def _rcmd_i(room, args):
-        await room._rcmd_b(args)
-    async def _rcmd_b(room, args):
-        args = args.split(":")
-        _time = float(args[0])
-        name, tname, puid, unid, msgid, ip, flags = args[1:8]
-        body = args[9]
-        msg = Message()
-        msg._room = room
-        msg._time = float(_time)
-        msg._user = name
-        msg._puid = int(puid)
-        msg._tempname = tname
-        msg._msgid = str(msgid)
-        msg._unid = str(unid)
-        msg._ip = str(ip)
-        msg._body = html.unescape(
-            re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
-            )
-        for key, value in MESSAGE_FLAGS.items():
-            if has_flag(flags, value):
-                msg._flags[key] = True
-            else:
-                msg._flags[key] = False
-        room._mqueue[msg._msgid] = msg
-    async def _rcmd_u(room, arg):
-        args = arg.split(":")
-        if args[0] in room._mqueue:
-            msg = room._mqueue.pop(args[0])
-            if msg._user != room._user:
-                pass
-            msg.attach(room, args[1])
-            await room.client._call_event("message", msg)

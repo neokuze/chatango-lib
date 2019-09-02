@@ -2,12 +2,14 @@
 Module for room related stuff
 """
 
-from .utils import gen_uid
+from .utils import gen_uid, has_flag
 from .connection import Connection
+from .message import Message, MESSAGE_FLAGS
 import aiohttp
 import asyncio
 import sys
 import typing
+import html, re
 specials = {
     'mitvcanal': 56, 'animeultimacom': 34, 'cricket365live': 21,
     'pokemonepisodeorg': 22, 'animelinkz': 20, 'sport24lt': 56,
@@ -136,3 +138,49 @@ class Room(Connection):
         	font_color = "000000"
         	message = name_color + "<f x{}{}=\"{}\">".format(str(font_size), font_color,font_face) + "\r".join(message) + "</f>"
         	await self._send_command("bm", "chlb", message)
+
+    async def _rcmd_ok(self, args):
+        args = args.split(":")
+        self.owner = args[0]
+        self._unid = args[1]
+        self._user = args[3]
+
+    async def _rcmd_inited(self, args):
+        pass
+    async def _rcmd_pong(self, args):
+        await self.client._call_event("pong")
+    async def _rcmd_n(self, user_count):
+        self.user_count = int(user_count, 16)
+    async def _rcmd_i(self, args):
+        await self._rcmd_b(args)
+    async def _rcmd_b(self, args):
+        args = args.split(":")
+        _time = float(args[0])
+        name, tname, puid, unid, msgid, ip, flags = args[1:8]
+        body = args[9]
+        msg = Message()
+        msg._room = self
+        msg._time = float(_time)
+        msg._user = name or tname
+        msg._puid = int(puid)
+        msg._tempname = tname
+        msg._msgid = str(msgid)
+        msg._unid = str(unid)
+        msg._ip = str(ip)
+        msg._body = html.unescape(
+            re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
+            )
+        for key, value in MESSAGE_FLAGS.items():
+            if has_flag(flags, value):
+                msg._flags[key] = True
+            else:
+                msg._flags[key] = False
+        self._mqueue[msg._msgid] = msg
+    async def _rcmd_u(self, arg):
+        args = arg.split(":")
+        if args[0] in self._mqueue:
+            msg = self._mqueue.pop(args[0])
+            if msg._user != self._user:
+                pass
+            msg.attach(self, args[1])
+            await self.client._call_event("message", msg)
