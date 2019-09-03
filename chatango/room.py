@@ -156,7 +156,7 @@ class Room(Connection):
     async def _rcmd_inited(self, args):
         pass
 
-    async def _rcmd_pong(self):
+    async def _rcmd_pong(self, args):
         await self.client._call_event(self, "pong")
 
     async def _rcmd_n(self, args):
