@@ -147,14 +147,13 @@ class Room(Connection):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
 
     async def send_message(self, message):
-        if len(message) > 0:
-            e = "000000"  # hex name color
-            name_color = "<n" + e + "/>"
-            font_size = 11
-            font_face = 1
-            font_color = "000000"
-            message = f'{name_color} <f x{font_size}{font_color}="{font_face}">{message}</f>'
-            await self._send_command("bm", "chlb", message)
+        message_flags = "0"
+        name_color = "000000"  # hex name color (3 or 6 characters)
+        font_size = 11 # must have two digits
+        font_face = 1
+        font_color = "000000" # hex color (3 or 6 characters)
+        message = f'<n{name_color}/><f x{font_size}{font_color}="{font_face}">{message}</f>'
+        await self._send_command("bm", "chlb", message_flags, message)
 
     async def _rcmd_ok(self, args):
         self.owner = args[0]
@@ -200,4 +199,3 @@ class Room(Connection):
                 pass
             msg.attach(self, args[1])
             await self.client._call_event("message", msg)
-    
