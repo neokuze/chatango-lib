@@ -3,33 +3,18 @@ import asyncio
 import typing
 import random
 
-owners = ["neokuze", "theclonerx"]
-
-
 class MyBot(chatango.Client):
     async def on_init(self):
         print("Bot initialized")
-        self.suffix = "/"
         await self.join("examplegroup")
 
     async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
         print("Connected to", room)
 
     async def on_message(self, message):
-        if len(message._body.split(" ", 1)) > 1:
-            cmd = message._body.split(" ", 1)[0].lower()
-            args = message._body.split(" ", 1)[1].strip().split(" ")
-        else:
-            cmd, args = message._body.split(" ", 1)[0], []
-        cmd = cmd[:-1]
-        issuffix = message._body[len(cmd):len(
-            cmd)+len(self.suffix)] == self.suffix
-        print(
-            f"[{message._room.name}]-[{issuffix}]-[{message._user}]: {message._body}")
-        if issuffix:
-            if cmd == "hello":  # using version
-                await message._room.send_message(f"Hello! {message._user}")
-
+        print(message._room.name, message._user, ascii(message._body)[1:-1])
+        if message._body.startswith("!a"):
+            await message._room.send_message(f"Hello {message._user}")
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
