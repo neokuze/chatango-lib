@@ -127,6 +127,14 @@ class Room(Connection):
     def _addHistory(self, msg):
         pass
 
+    async def _reload(self):
+        if self._usercount <= 1000:
+            await self._send_command("g_participants:start")
+        else:
+            await self._send_command("gparticipants:start")
+        await self._send_command("getpremium", "l")
+        await self._send_command('getannouncement')
+
     async def _connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         self._user = user_name
         self._connection = await self.client.aiohttp_session.ws_connect(
@@ -154,11 +162,12 @@ class Room(Connection):
         self._user = args[3]
 
     async def _rcmd_inited(self, args):
-        pass
+        await self._reload()
 
     async def _rcmd_pong(self, args):
         await self.client._call_event(self, "pong")
-
+    async def _rcmd_nomore(self, args):
+        pass
     async def _rcmd_n(self, args):
         self.user_count = int(args[0], 16)
 
@@ -191,3 +200,4 @@ class Room(Connection):
                 pass
             msg.attach(self, args[1])
             await self.client._call_event("message", msg)
+    
