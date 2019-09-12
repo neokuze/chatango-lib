@@ -2,7 +2,7 @@
 Module for room related stuff
 """
 
-from .utils import gen_uid, parse_flags
+from .utils import gen_uid
 from .connection import Connection
 from .message import Message, MessageFlags
 import aiohttp
@@ -146,7 +146,7 @@ class Room(Connection):
     def __repr__(self):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
 
-    async def send_message(self, message, use_html = False):
+    async def send_message(self, message, use_html=False):
         message_flags = "0"
         name_color = "000000"  # hex name color (3 or 6 characters)
         font_size = 11  # must have two digits
@@ -154,11 +154,11 @@ class Room(Connection):
         font_color = "000000"  # hex color (3 or 6 characters)
         message = str(message)
         if not use_html:
-            message = html.escape(message, quote = False)
+            message = html.escape(message, quote=False)
         message = f'<n{name_color}/><f x{font_size}{font_color}="{font_face}">{message}</f>'
         await self._send_command("bm", "chlb", message_flags, message)
 
-    async def _rcmd_ok(self, args): #TODO
+    async def _rcmd_ok(self, args): # TODO
         self.owner = args[0]
         self._unid = args[1]
         self._user = args[3]
@@ -170,6 +170,7 @@ class Room(Connection):
         await self.client._call_event(self, "pong")
 
     async def _rcmd_nomore(self, args):  # TODO
+        """No more past messages"""
         pass
 
     async def _rcmd_n(self, args):
@@ -178,6 +179,7 @@ class Room(Connection):
 
     async def _rcmd_i(self, args):
         """history past messages"""
+        # TODO: Proper handling
         await self._rcmd_b(args)
 
     async def _rcmd_b(self, args):  # TODO
@@ -197,7 +199,7 @@ class Room(Connection):
         msg._body = html.unescape(
             re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
         )
-        msg._flags = parse_flags(MessageFlags, int(flags))
+        msg._flags = MessageFlags(int(flags))
         self._mqueue[msg._msgid] = msg
 
     async def _rcmd_u(self, args):
@@ -212,5 +214,6 @@ class Room(Connection):
     async def _rcmd_gparticipants(self, args):
         """old command, chatango keep sending it."""
         await self._rcmd_g_participants(len(args) > 1 and args[1:] or '')
+
     async def _rcmd_g_participants(self, args):
         pass
