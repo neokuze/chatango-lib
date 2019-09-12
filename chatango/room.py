@@ -2,7 +2,7 @@
 Module for room related stuff
 """
 
-from .utils import gen_uid
+from .utils import gen_uid, parse_flags
 from .connection import Connection
 from .message import Message, MessageFlags
 import aiohttp
@@ -146,16 +146,19 @@ class Room(Connection):
     def __repr__(self):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
 
-    async def send_message(self, message):
+    async def send_message(self, message, use_html = False):
         message_flags = "0"
         name_color = "000000"  # hex name color (3 or 6 characters)
-        font_size = 11 # must have two digits
+        font_size = 11  # must have two digits
         font_face = 1
-        font_color = "000000" # hex color (3 or 6 characters)
+        font_color = "000000"  # hex color (3 or 6 characters)
+        message = str(message)
+        if not use_html:
+            message = html.escape(message, quote = False)
         message = f'<n{name_color}/><f x{font_size}{font_color}="{font_face}">{message}</f>'
         await self._send_command("bm", "chlb", message_flags, message)
 
-    async def _rcmd_ok(self, args):
+    async def _rcmd_ok(self, args): #TODO
         self.owner = args[0]
         self._unid = args[1]
         self._user = args[3]
@@ -165,15 +168,20 @@ class Room(Connection):
 
     async def _rcmd_pong(self, args):
         await self.client._call_event(self, "pong")
-    async def _rcmd_nomore(self, args):
+
+    async def _rcmd_nomore(self, args):  # TODO
         pass
+
     async def _rcmd_n(self, args):
+        """user count"""
         self.user_count = int(args[0], 16)
 
     async def _rcmd_i(self, args):
+        """history past messages"""
         await self._rcmd_b(args)
 
-    async def _rcmd_b(self, args):
+    async def _rcmd_b(self, args):  # TODO
+        """Process message"""
         _time = float(args[0])
         name, tname, puid, unid, msgid, ip, flags = args[1:8]
         body = ":".join(args[9:])
@@ -189,13 +197,20 @@ class Room(Connection):
         msg._body = html.unescape(
             re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
         )
-        msg._flags = MessageFlags(int(flags))
+        msg._flags = parse_flags(MessageFlags, int(flags))
         self._mqueue[msg._msgid] = msg
 
     async def _rcmd_u(self, args):
+        """attachs and call event on_message"""
         if args[0] in self._mqueue:
             msg = self._mqueue.pop(args[0])
             if msg._user != self._user:
                 pass
             msg.attach(self, args[1])
             await self.client._call_event("message", msg)
+
+    async def _rcmd_gparticipants(self, args):
+        """old command, chatango keep sending it."""
+        await self._rcmd_g_participants(len(args) > 1 and args[1:] or '')
+    async def _rcmd_g_participants(self, args):
+        pass
