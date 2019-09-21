@@ -12,14 +12,14 @@ class MyBot(chatango.Client):
         print("Connected to", room)
 
     async def on_message(self, message):
-        print(message._room.name, message._user, ascii(message._body)[1:-1])
-        if message._body.startswith("!a"):
-            await message._room.send_message(f"Hello {message._user}")
+        print(message.room.name, message._user, ascii(message.body)[1:-1])
+        if message.body.startswith("!a"):
+            await message._room.send_message(f"Hello {message.user}")
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
     bot = MyBot()
-    bot.default_user("examplebot")
+    bot.default_user("examplebot", pm=False)
     loop.run_until_complete(bot.start())
     loop.run_forever()
