@@ -24,18 +24,30 @@ class MessageFlags(enum.IntFlag):
 class Message(object):
     def __init__(self):
         self._msgid = None
-        self._time = 0
         self._user = None
-        self._body = str()
         self._room = None
+        self._nameColor = str("000000")
+        self._fontColor = str("000000")
+        self._fontSize = 12
+        self._fontFace = 0
+        self._time = 0
+        self._puid = int()
+        self._body = str()
         self._ip = str()
         self._unid = str()
-        self._puid = int()
-        self._nameColor = str("000")
-        self._fontSize = 11
-        self._fontFace = 0
-        self._fontColor = str("000")
         self._flags = dict()
+
+    @property
+    def user(self):
+        return self._user
+        
+    @property
+    def body(self):
+        return self._body
+
+    @property
+    def room(self):
+        return self._room
 
     def attach(self, room, msgid):
         if self._msgid is not None:
