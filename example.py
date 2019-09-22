@@ -15,7 +15,14 @@ class MyBot(chatango.Client):
         print(message.room.name, message._user, ascii(message.body)[1:-1])
         if message.body.startswith("!a"):
             await message._room.send_message(f"Hello {message.user}")
-
+        elif message.body.split(" ")[0] == "!e" and message.body.split(" ") > 1:
+            try:
+                if message.body.split(" ")[1] == "await":
+                    ret = await eval(" ".join(message.body.split(" ")[2:]))
+                else:
+                    ret = eval(" ".join(message.body.split(" ")[1:]))
+            except Exception as e:
+                print('3rr0r: ', e)
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
