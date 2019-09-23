@@ -90,8 +90,8 @@ class Client:
 
 class styles:
     def __init__(self):
-        self._nameColor = str("ffff99")
-        self._fontColor = str("CC66CC")  # ffff99
+        self._nameColor = str("00000")
+        self._fontColor = str("00000")
         self._fontSize = 11
         self._fontFace = 1
         self._bg_on = True
