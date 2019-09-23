@@ -1,30 +1,31 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
 import chatango
 import asyncio
 import typing
 import random
 
-owners = ["theclonerx","neokuze"]
+
 class MyBot(chatango.Client):
     async def on_init(self):
         print("Bot initialized")
-        await self.join("examplegroup")
+        await self.join("examplebot")
 
     async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
         print("Connected to", room)
 
-    async def onmessage(self, message):
-        print(message.room.name, message.user.showname, ascii(message.body)[1:-1])
+    async def on_room_init(self, room):
+        room.setFont("namecolor", "000000")
+        room.setFont("fontcolor", "000000")
+        room.setFont("fontsize", 11)
+        room.setFont("fontface", 1)
+        
+    async def on_message(self, message):
+        print(message.room.name, message.user.showname,
+              ascii(message.body)[1:-1])
         if message.body.startswith("!a"):
-            await message.room.send_message(f"Hello {message.user.showname}")
-        elif not message.user.isanon and message.user.name in owners and message.body.split(" ")[0] == "!e" and message.body.split(" ") > 1:
-            try:
-                if message.body.split(" ")[1] == "await":
-                    ret = await eval(" ".join(message.body.split(" ")[2:]))
-                else:
-                    ret = eval(" ".join(message.body.split(" ")[1:]))
-            except Exception as ret:
-                print('Error: ', ret)
-            await message.room.send_messsge(ret, html=False)
+            await message._room.send_message(f"Hello {message.user.showname}")
+
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
