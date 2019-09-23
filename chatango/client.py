@@ -7,8 +7,6 @@ from .pm import PM
 from .room import Room
 from .exceptions import AlreadyConnectedError, NotConnectedError
 
-version = 0.280
-
 
 class Client:
     def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None):
@@ -43,7 +41,6 @@ class Client:
         del self._rooms[room_name]
 
     async def start(self):
-        self.styles = styles()
         self._running = True
         if self._default_user_name and self._default_password and self._default_pm:
             await self.pm.connect(self._default_user_name, self._default_password)
@@ -60,11 +57,11 @@ class Client:
         self._rooms.clear()
         self._running = True
 
-    async def enableBg(self, activo=True):
+    async def enableBg(self, active=True):
         """Enable background if available."""
-        self.bgmode = activo
+        self.bgmode = active
         for room in self._rooms:
-            await self._rooms[room].setBgMode(int(activo))
+            await self._rooms[room].setBgMode(int(active))
 
     @property
     def running(self):
@@ -86,22 +83,3 @@ class Client:
         else:
             event_name = name
         setattr(self, event_name, func)
-
-
-class styles:
-    def __init__(self):
-        self._nameColor = str("00000")
-        self._fontColor = str("00000")
-        self._fontSize = 11
-        self._fontFace = 1
-        self._bg_on = True
-
-    @property
-    def bg_on(self):
-        return int(self._bg_on)
-
-    @property
-    def default(self):
-        size = str(self._fontSize)
-        face = str(self._fontFace)
-        return f"<f x{size}{self._fontColor}='{face}'>"

@@ -46,6 +46,7 @@ class User:
         self = super().__new__(cls)
 
         cls._users[key] = self
+        
         self._name = str()
         self._ip = None
         self._flags = 0
@@ -54,7 +55,7 @@ class User:
         self._sids = dict()
         self._showname = str()
         self._ispremium = None
-
+        self._styles = Styles()
         for attr, val in kwargs.items():
             setattr(self, '_' + attr, val)
         return self
@@ -65,12 +66,18 @@ class User:
     @property
     def name(self):
         return self._name
+
     @property
     def ispremium(self):
         return self._ispremium
+
     @property
     def showname(self):
         return self._showname
+
+    @property
+    def styles(self):
+        return self._styles
 
     @property
     def isanon(self):
@@ -93,3 +100,22 @@ class User:
                 self._sids[room].remove(sid)
             if len(self._sids[room]) == 0:
                 del self._sids[room]
+
+
+class Styles:
+    def __init__(self):
+        self._nameColor = str("000000")
+        self._fontColor = str("000000")
+        self._fontSize = 11
+        self._fontFace = 1
+        self._bg_on = True
+
+    @property
+    def bg_on(self):
+        return int(self._bg_on)
+
+    @property
+    def default(self):
+        size = str(self._fontSize)
+        face = str(self._fontFace)
+        return f"<f x{size}{self._fontColor}='{face}'>"

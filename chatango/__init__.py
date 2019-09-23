@@ -5,3 +5,5 @@ from .pm import *
 from .utils import *
 from .user import *
 from .connection import *
+
+__version__ = "0.8.7a"

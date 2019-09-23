@@ -133,12 +133,12 @@ class Room(Connection):
         self._usercount = 0
         self._maxlen = 2900
         self._history = deque(maxlen=self._maxlen)
-        self._bgmode = self.client.styles.bg_on
+        self._bgmode = 1
         self.message_flags = 0
 
     def __repr__(self):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
-    
+
     @property
     def owner(self):
         return self._owner
@@ -171,8 +171,18 @@ class Room(Connection):
         return sorted([x[1] for x in list(self._userdict.values())],
                       key=lambda z: z.name.lower())
 
-    async def setBgMode(self, modo):
-        self._bgmode = modo
+    def setFont(self, attr, font):
+        if attr == "namecolor":
+            self._user.styles._nameColor = str(font)
+        elif attr == "fontcolor":
+            self._user.styles._fontColor = str(font)
+        elif attr == "fontsize":
+            self._user.styles._fontSize = int(font)
+        elif attr == "fontface":
+            self._user.styles._fontFace = int(font)
+
+    async def setBgMode(self, mode):
+        self._bgmode = mode
         if self.connected and self.user.ispremium:
             await self._send_command('msgbg', str(self._bgmode))
 
@@ -235,10 +245,10 @@ class Room(Connection):
 
     async def send_message(self, message, use_html=False):
         message_flags = str(self.message_flags) or "0"
-        name_color = self.client.styles._nameColor or str("000000")
-        font_size = self.client.styles._fontSize or 12
-        font_face = self.client.styles._fontFace or 0
-        font_color = self.client.styles._fontColor or str("000000")
+        name_color = self.user.styles._nameColor or str("000000")
+        font_size = self.user.styles._fontSize or 12
+        font_face = self.user.styles._fontFace or 0
+        font_color = self.user.styles._fontColor or str("000000")
         message = str(message)
         if not use_html:
             message = html.escape(message, quote=False)
@@ -267,6 +277,7 @@ class Room(Connection):
                 self._mods[User(mod)] = ModeratorFlags(int(power))
                 self._mods[User(mod)].isadmin = ModeratorFlags(int(
                     power)) & AdminFlags != 0
+        await self.client._call_event("room_init", self)
 
     async def _rcmd_inited(self, args):
         await self._reload()
