@@ -10,7 +10,7 @@ readme = ""
 with open("README.md") as f:
     readme = f.read()
 
-setup(
+setup(name="chatango.py"
     author="Yado",
     url="https://github.com/neokuze/chatango-lib",
     packages=["chatango"],
