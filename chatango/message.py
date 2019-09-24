@@ -43,7 +43,7 @@ class Message(object):
         
     @property
     def body(self):
-        return self._body
+        return str(self._body) # ensure str
 
     @property
     def room(self):
