@@ -123,7 +123,7 @@ class User:
                         text = await resp.text()
                         text = text.replace("<?xml version=\"1.0\" ?>", "")
                         self._bgstyle = dict([url.replace('"', '').split(
-                            "=") for url in re.findall('(\w+=".*?")', text)[1:]])
+                            "=") for url in re.findall('(\w+=".*?")', text)])
 
                     async with session.get(f"http://ust.chatango.com/profileimg{link}mod1.xml") as resp:
                         text = await resp.text()
