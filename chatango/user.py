@@ -4,7 +4,9 @@ Module for user related stuff
 import enum
 import aiohttp
 from collections import deque
-import json, re
+import json
+import re
+
 
 class ModeratorFlags(enum.IntFlag):
     DELETED = 1 << 0
@@ -35,6 +37,7 @@ AdminFlags = (ModeratorFlags.EDIT_MODS | ModeratorFlags.EDIT_RESTRICTIONS |
 
 class User:
     _users = {}
+
     def __new__(cls, name, **kwargs):
         key = name.lower()
         if key in cls._users:
@@ -58,10 +61,10 @@ class User:
         for attr, val in kwargs.items():
             setattr(self, '_' + attr, val)
         return self
-    
+
     def __repr__(self):
         return "<User: %s>" % self.name
-    
+
     @property
     def fullpic(self):
         if not self.isanon:
@@ -69,7 +72,7 @@ class User:
             fp = f"http://fp.chatango.com/profileimg{link}full.jpg"
             return fp
         return False
-    
+
     @property
     def name(self):
         return self._name
@@ -103,7 +106,7 @@ class User:
                 self._sids[room].remove(sid)
             if len(self._sids[room]) == 0:
                 del self._sids[room]
-                
+
     async def get_profile(self):
         if not self.isanon:
             link = '/%s/%s/' % ('/'.join((self.name * 2)[:2]), self.name)
@@ -112,18 +115,22 @@ class User:
                     self._no_refresh = True
                     async with session.get(f"http://ust.chatango.com/profileimg{link}msgstyles.json") as resp:
                         resp = json.loads(await resp.text())
-                        self._nameColor, self._fontFace, self._fontSize, self._fontColor = resp["nameColor"], int(resp["fontFamily"]), int(resp["fontSize"]), resp["textColor"]
+                        self._nameColor, self._fontFace, self._fontSize, self._fontColor = resp["nameColor"], int(
+                            resp["fontFamily"]), int(resp["fontSize"]), resp["textColor"]
                         self._usebackground = int(resp["usebackground"])
-                        
+
                     async with session.get(f"http://ust.chatango.com/profileimg{link}msgbg.xml") as resp:
                         text = await resp.text()
                         text = text.replace("<?xml version=\"1.0\" ?>", "")
-                        self._bgstyle = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', text)[1:]])
+                        self._bgstyle = dict([url.replace('"', '').split(
+                            "=") for url in re.findall('(\w+=".*?")', text)[1:]])
 
                     async with session.get(f"http://ust.chatango.com/profileimg{link}mod1.xml") as resp:
                         text = await resp.text()
                         text = text.replace("<?xml version=\"1.0\" ?>", "")
-                        self._profile = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', text)[1:]])
+                        self._profile = dict([url.replace('"', '').split(
+                            "=") for url in re.findall('(\w+=".*?")', text)[1:]])
+
 
 class Styles:
     def __init__(self):
@@ -132,19 +139,19 @@ class Styles:
         self._fontSize = 11
         self._fontFace = 1
         self._usebackground = 0
-        
+
         self._no_refresh = False
         self._bgstyle = dict()
         self._profile = dict()
-        
+
     @property
     def profile(self):
         return self._profile
-        
+
     @property
     def bgstyle(self):
         return self._bgstyle
-        
+
     @property
     def bg_on(self):
         return int(self._usebackground)
