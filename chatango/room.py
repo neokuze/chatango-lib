@@ -115,7 +115,7 @@ class Room(Connection):
 
     def __init__(self, client, name: str):
         if name in client._rooms:
-            return
+            return # http://ust.chatango.com/groupinfo/f/a/farminggames/gprofile.xml
         super().__init__(client)
         self.name = name
         self.server = get_server(name)
@@ -127,7 +127,7 @@ class Room(Connection):
         self._userdict = dict()
         self._mqueue = dict()
         self._msgs = dict()
-        self._users = deque()
+        self._users = dict()
         self._unbanqueue = deque(maxlen=500)
         self._unid = str()
         self._usercount = 0
@@ -173,13 +173,13 @@ class Room(Connection):
 
     def setFont(self, attr, font):
         if attr == "namecolor":
-            self._user.styles._nameColor = str(font)
+            self._user._nameColor = str(font)
         elif attr == "fontcolor":
-            self._user.styles._fontColor = str(font)
+            self._user._fontColor = str(font)
         elif attr == "fontsize":
-            self._user.styles._fontSize = int(font)
+            self._user._fontSize = int(font)
         elif attr == "fontface":
-            self._user.styles._fontFace = int(font)
+            self._user._fontFace = int(font)
 
     async def setBgMode(self, mode):
         self._bgmode = mode
@@ -245,10 +245,10 @@ class Room(Connection):
 
     async def send_message(self, message, use_html=False):
         message_flags = str(self.message_flags) or "0"
-        name_color = self.user.styles._nameColor or str("000000")
-        font_size = self.user.styles._fontSize or 12
-        font_face = self.user.styles._fontFace or 0
-        font_color = self.user.styles._fontColor or str("000000")
+        name_color = self.user._nameColor or str("000000")
+        font_size = self.user._fontSize or 12
+        font_face = self.user._fontFace or 0
+        font_color = self.user._fontColor or str("000000")
         message = str(message)
         if not use_html:
             message = html.escape(message, quote=False)
@@ -385,7 +385,7 @@ class Room(Connection):
                     name = tname
                 else:
                     name = getAnonName(puid, contime)
-            user = User(name, room=self, isanon=isanon, puid=puid)
+            user = User(name, isanon=isanon, puid=puid)
             if user in ({self._owner} | self.mods):
                 user.setName(name)
             user.addSessionId(self, ssid)

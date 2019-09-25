@@ -1,10 +1,12 @@
 """
 Module for pm related stuff
 """
+from .utils import get_token, gen_uid
 from .connection import Connection
 import urllib.parse
 import aiohttp
 import typing
+import asyncio
 
 
 class PM(Connection):
