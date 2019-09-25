@@ -115,7 +115,7 @@ class Room(Connection):
 
     def __init__(self, client, name: str):
         if name in client._rooms:
-            return # http://ust.chatango.com/groupinfo/f/a/farminggames/gprofile.xml
+            return 
         super().__init__(client)
         self.name = name
         self.server = get_server(name)
