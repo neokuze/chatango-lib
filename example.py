@@ -15,10 +15,13 @@ class MyBot(chatango.Client):
         print("Connected to", room)
 
     async def on_room_init(self, room):
-        room.setFont("namecolor", "000000")
-        room.setFont("fontcolor", "000000")
-        room.setFont("fontsize", 11)
-        room.setFont("fontface", 1)
+        if room.user.isanon:
+            room.setFont("namecolor", "000000")
+            room.setFont("fontcolor", "000000")
+            room.setFont("fontsize", 11)
+            room.setFont("fontface", 1)
+        else:
+            await room.user.get_profile()
         
     async def on_message(self, message):
         print(message.room.name, message.user.showname,
