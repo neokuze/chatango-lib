@@ -43,7 +43,7 @@ class Client:
     async def start(self):
         self._running = True
         if self._default_user_name and self._default_password and self._default_pm:
-            await self.pm.connect(self._default_user_name, self._default_password)
+            await self.pm._connect(self._default_user_name, self._default_password)
         await self._call_event("init")
 
     def default_user(self, user_name: str, password: typing.Optional[str] = None, pm=False):
