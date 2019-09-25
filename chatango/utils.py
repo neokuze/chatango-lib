@@ -7,7 +7,26 @@ import random
 import typing
 import html
 import re
+import asyncio, aiohttp
 
+async def get_token(user_name, passwd):
+    payload = {
+            "user_id": str(user_name).lower(),
+            "password": str(passwd),
+            "storecookie": "on",
+            "checkerrors": "yes"
+        }
+    s = "auth.chatango.com"
+    async with aiohttp.ClientSession() as session:
+        async with session.post('http://chatango.com/login',
+                        data=payload) as resp:
+            _token = str(resp.cookies.get(s))
+            if s+'=' in _token:
+                token = _token.split(s+'=')[1].split(";")[0]
+            else:
+                token = False
+            return token
+    return False
 
 def gen_uid() -> str:
     """
