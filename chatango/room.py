@@ -115,7 +115,7 @@ class Room(Connection):
 
     def __init__(self, client, name: str):
         if name in client._rooms:
-            return 
+            return # http://ust.chatango.com/groupinfo/f/a/farminggames/gprofile.xml
         super().__init__(client)
         self.name = name
         self.server = get_server(name)
@@ -245,14 +245,10 @@ class Room(Connection):
 
     async def send_message(self, message, use_html=False):
         message_flags = str(self.message_flags) or "0"
-        name_color = self.user._nameColor or str("000000")
-        font_size = self.user._fontSize or 12
-        font_face = self.user._fontFace or 0
-        font_color = self.user._fontColor or str("000000")
         message = str(message)
         if not use_html:
             message = html.escape(message, quote=False)
-        message = f'<n{name_color}/><f x{font_size}{font_color}="{font_face}">{message}</f>'
+        message = f'<n{self.user._nameColor}/><f x{self.user._fontSize}{self.user._fontColor}="{self.user._fontFace}">{message}</f>'
         await self._send_command("bm", "chlb", message_flags, message)
 
     async def _rcmd_ok(self, args):  # TODO
