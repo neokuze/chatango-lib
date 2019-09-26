@@ -84,7 +84,25 @@ class User:
     @property
     def showname(self):
         return self._showname
+    
+    @property
+    def default(self):
+        size = str(self._fontSize)
+        face = str(self._fontFace)
+        return f"<f x{size}{self._fontColor}='{face}'>"
 
+    @property
+    def profile(self):
+        return self._profile
+
+    @property
+    def bgstyle(self):
+        return self._bgstyle
+
+    @property
+    def bg_on(self):
+        return int(self._usebackground)
+        
     @property
     def isanon(self):
         return self._isanon
@@ -144,20 +162,4 @@ class Styles:
         self._bgstyle = dict()
         self._profile = dict()
 
-    @property
-    def profile(self):
-        return self._profile
 
-    @property
-    def bgstyle(self):
-        return self._bgstyle
-
-    @property
-    def bg_on(self):
-        return int(self._usebackground)
-
-    @property
-    def default(self):
-        size = str(self._fontSize)
-        face = str(self._fontFace)
-        return f"<f x{size}{self._fontColor}='{face}'>"
