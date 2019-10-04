@@ -144,6 +144,10 @@ class Room(Connection):
         return self._owner
 
     @property
+    def flags(self):
+        return self._flags
+
+    @property
     def user(self):
         return self._user
 

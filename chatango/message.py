@@ -46,6 +46,18 @@ class Message(object):
         return str(self._body) # ensure str
 
     @property
+    def time(self):
+        return self._time
+    
+    @property
+    def flags(self):
+        return self._flags
+
+    @property
+    def ip(self):
+        return self._ip
+
+    @property
     def room(self):
         return self._room
 
