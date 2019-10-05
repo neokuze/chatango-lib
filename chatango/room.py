@@ -6,7 +6,7 @@ from .utils import gen_uid, getAnonName, _clean_message, _parseFont
 from .connection import Connection
 from .message import Message, MessageFlags
 from .user import User, ModeratorFlags, AdminFlags
-from collections import deque
+from collections import deque, namedtuple
 import aiohttp
 import asyncio
 import sys
@@ -105,6 +105,8 @@ def get_server(group):
 
 
 class Room(Connection):
+    _BANDATA = namedtuple('BanData', ['unid', 'ip', 'target', 'time', 'src'])
+
     def __new__(cls, client, name: str):
         name = name.lower()
         if name not in client._rooms:
@@ -113,9 +115,14 @@ class Room(Connection):
             client._rooms[name] = self
         return client._rooms[name]
 
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
+
     def __init__(self, client, name: str):
         if name in client._rooms:
-            return # http://ust.chatango.com/groupinfo/f/a/farminggames/gprofile.xml
+            return  # http://ust.chatango.com/groupinfo/f/a/farminggames/gprofile.xml
         super().__init__(client)
         self.name = name
         self.server = get_server(name)
@@ -128,8 +135,10 @@ class Room(Connection):
         self._mqueue = dict()
         self._msgs = dict()
         self._users = dict()
-        self._unbanqueue = deque(maxlen=500)
         self._unid = str()
+        self._banlist = dict()
+        self._unbanlist = dict()
+        self._unbanqueue = deque(maxlen=500)
         self._usercount = 0
         self._maxlen = 2900
         self._history = deque(maxlen=self._maxlen)
@@ -138,6 +147,14 @@ class Room(Connection):
 
     def __repr__(self):
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
+
+    @property
+    def history(self):
+        return self._history
+
+    @property
+    def banlist(self):
+        return self._banlist
 
     @property
     def owner(self):
@@ -185,11 +202,6 @@ class Room(Connection):
         elif attr == "fontface":
             self._user._fontFace = int(font)
 
-    async def setBgMode(self, mode):
-        self._bgmode = mode
-        if self.connected and self.user.ispremium:
-            await self._send_command('msgbg', str(self._bgmode))
-
     def getSessionlist(self, mode=0, memory=0):  # TODO
         if mode < 2:
             return [(x.name if mode else x, len(x.getSessionIds(self))) for x in
@@ -222,8 +234,110 @@ class Room(Connection):
                 return 1
         return 0
 
+    def banRecord(self, user):
+        if isinstance(user, User):  # TODO
+            user = user.name
+        if user.lower() in [x.name for x in self._banlist]:
+            return self._banlist[User(user)]
+        return None
+
+    def getLastMessage(self, user=None):
+        """Obtener el último mensaje de un usuario en una sala"""
+        if not user:
+            return self._history and self._history[-1] or None
+        if isinstance(user, User):
+            user = user.name
+        for x in reversed(self.history):
+            if x.user.name == user:
+                return x
+        return None
+
+    async def rawUnban(self, name, ip, unid):
+        await self._send_command("removeblock", unid, ip, name)
+
     def _addHistory(self, msg):
-        pass
+        if len(self._history) == 2900:
+            rest = self._history.popleft()
+            rest.detach()
+        self._history.append(msg)
+
+    async def unbanUser(self, user):
+        rec = self.banRecord(user)
+        if rec:
+            await self.rawUnban(rec.target.name, rec.ip, rec.unid)
+            return True
+        else:
+            return False
+
+    async def banMessage(self, msg: Message) -> bool:
+        if self.getLevel(self.user) > 0:
+            name = '' if msg.user.isanon else msg.user.name
+            await self._rawBan(msg.unid, msg.ip, name)
+            return True
+        return False
+
+    async def _rawBan(self, msgid, ip, name):
+        """
+        Ban user with received data
+        @param msgid: Message id
+        @param ip: user IP
+        @param name: chatango user name
+        @return: bool
+        """
+        await self._send_command("block", msgid, ip, name)
+
+    async def banUser(self, user: str) -> bool:
+        """
+        Banear un usuario (si se tiene el privilegio)
+        @param user: El usuario, str o User
+        @return: Bool indicando si se envió el comando
+        """
+        msg = self.getLastMessage(user)
+        if msg and msg.user not in self.banlist:
+            return await self.banMessage(msg)
+        return False
+
+    async def clearall(self):
+        """Borra todos los mensajes"""
+        mod = self._mods.get(self._user)
+        if self.user == self._owner or (mod and mod.EDIT_GROUP):
+            await self._send_command("clearall")
+            return True
+        else:
+            return False
+
+    async def clearUser(self, user):
+        # TODO
+        if self.getLevel(self.user) > 0:
+            msg = self.getLastMessage(user)
+            if msg:
+                name = '' if msg.user.isanon else msg.user.name
+                await self._send_command("delallmsg", msg.unid, msg.ip, name)
+                return True
+        return False
+
+    async def deleteMessage(self, message):
+        if self.getLevel(self.user) > 0 and message.msgid:
+            await self._send_command("delmsg", message.msgid)
+            return True
+        return False
+
+    async def deleteUser(self, user):
+        if self.getLevel(self.user) > 0:
+            msg = self.getLastMessage(user)
+            if msg:
+                await self.deleteMessage(msg)
+        return False
+
+    async def requestUnBanlist(self):
+        await self._send_command('blocklist', 'unblock',
+                                 str(int(time.time() + self._correctiontime)), 'next',
+                                 '500', 'anons', '1')
+
+    async def requestBanlist(self):  # TODO revisar
+        await self._send_command('blocklist', 'block',
+                                 str(int(time.time() + self._correctiontime)), 'next',
+                                 '500', 'anons', '1')
 
     async def _reload(self):
         if self._usercount <= 1000:
@@ -234,6 +348,13 @@ class Room(Connection):
         await self._send_command('getannouncement')
         await self._send_command("getbannedwords")
         await self._send_command("getratelimit")
+        await self.requestBanlist()
+        await self.requestUnBanlist()
+
+    async def setBgMode(self, mode):
+        self._bgmode = mode
+        if self.connected and self.user.ispremium:
+            await self._send_command('msgbg', str(self._bgmode))
 
     async def _disconnect(self):
         for x in self.userlist:
@@ -360,6 +481,7 @@ class Room(Connection):
             if msg._user != self._user:
                 pass
             msg.attach(self, args[1])
+            self._addHistory(msg)
             await self.client._call_event("message", msg)
 
     async def _rcmd_gparticipants(self, args):
@@ -456,3 +578,117 @@ class Room(Connection):
                         self._userhistory.append([contime, before])
                     await self.client._call_event('userlogout', before, puid)
             self._userdict[ssid] = [contime, user]
+
+    async def _rcmd_mods(self, args):
+        pre = self._mods
+        mods = self._mods = dict()
+        # Load current mods
+        for mod in args:
+            name, powers = mod.split(',', 1)
+            utmp = User.get(name)
+            self._mods[utmp] = ModeratorFlags(int(powers))
+            self._mods[utmp].isadmin = ModeratorFlags(int(
+                powers)) & AdminFlags != 0
+        tuser = User(self._currentname)
+        if (self.user not in pre and self.user in mods) or (tuser not in pre and tuser in mods):
+            if self.user == tuser:
+                await self.client._call_event('mod_added', self.user)
+            return
+
+        for user in self.mods - set(pre.keys()):
+            await self.client._call_event("mod_added", user)
+        for user in set(pre.keys()) - self.mods:
+            await self.client._call_event("mod_remove", user)
+        for user in set(pre.keys()) & self.mods:
+            privs = set(x for x in dir(mods.get(user)) if
+                        not x.startswith('_') and getattr(mods.get(user),
+                                                          x) != getattr(
+                pre.get(user), x))
+            privs = privs - {'MOD_ICON_VISIBLE', 'value'}
+            if privs:
+                await self.client._call_event('mods_change', user, privs)
+
+    async def _rcmd_groupflagsupdate(self, args):
+        flags = args[0]
+        self._flags = self._flags = RoomFlags(int(flags))
+        await self.client._call_event('flags_update')
+
+    async def _rcmd_blocked(self, args):  # TODO
+        target = args[2] and User(args[2]) or ''
+        user = User(args[3])
+        if not target:
+            msx = [msg for msg in self._history if msg.unid == args[0]]
+            target = msx and msx[0].user or User('ANON')
+            await self.client._call_event('anon_ban', user, target)
+        else:
+            await self.client._call_event("ban", user, target)
+        self._banlist[target] = self._BANDATA(args[0], args[1], target,
+                                              float(args[4]), user)
+
+    async def _rcmd_blocklist(self, args):  # TODO
+        self._banlist = dict()
+        sections = ":".join(args).split(";")
+        for section in sections:
+            params = section.split(":")
+            if len(params) != 5:
+                continue
+            if params[2] == "":
+                continue
+            user = User(params[2])
+            self._banlist[user] = self._BANDATA(params[0], params[1], user,
+                                                float(params[3]),
+                                                User(params[4]))
+        await self.client._call_event("banlist_update")
+
+    async def _rcmd_unblocked(self, args):
+        """Unban event"""
+        unid = args[0]
+        ip = args[1]
+        target = args[2].split(';')[0]
+        bnsrc = args[-3]
+        ubsrc = User(args[-2])
+        time = args[-1]
+        self._unbanqueue.append(
+            self._BANDATA(unid, ip, target, float(time), ubsrc))
+        if target == '':
+            msx = [msg for msg in self._history if msg.unid == unid]
+            target = msx and msx[0].user or User('anon')
+            await self.client._call_event('anon_unban', ubsrc, target)
+        else:
+            target = User(target)
+            if target in self._banlist:
+                self._banlist.pop(target)
+            await self.client._call_event("unban", ubsrc, target)
+
+    async def _rcmd_unblocklist(self, args):
+        sections = ":".join(args).split(";")
+        for section in sections[::-1]:
+            params = section.split(":")
+            if len(params) != 5:
+                continue
+            unid = params[0]
+            ip = params[1]
+            target = User(params[2] or 'Anon')
+            time = float(params[3])
+            src = User(params[4])
+            self._unbanqueue.append(self._BANDATA(unid, ip, target, time, src))
+        await self.client._call_event("unbanlist_update")
+
+    async def _rcmd_clearall(self, args):
+        await self.client._call_event("clearall", args[0])
+
+    async def _rcmd_denied(self, args):
+        await self.client._call_event("room_denied")
+        await self.disconnect()
+
+    async def _rcmd_updatemoderr(self, args):
+        await self.client._call_event("mod_update_error", User(args[1]), args[0])
+
+    async def _rcmd_proxybanned(self, args):
+        await self.client._call_event("proxy_banned")
+        
+    async def _rcmd_show_tb(self, args):
+        await self.client._call_event("show_tmp_ban", int(args[0]))
+        
+    async def _rcmd_miu(self, args):
+        await self.client._call_event('bg_reload', User(args[0]))

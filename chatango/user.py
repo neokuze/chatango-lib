@@ -61,7 +61,10 @@ class User:
         for attr, val in kwargs.items():
             setattr(self, '_' + attr, val)
         return self
-
+    
+    def get(name):
+        return User._users.get(name) or User(name)
+    
     def __repr__(self):
         return "<User: %s>" % self.name
 
