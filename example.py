@@ -4,12 +4,13 @@ import chatango
 import asyncio
 import typing
 import random
+import time
 
 
 class MyBot(chatango.Client):
     async def on_init(self):
         print("Bot initialized")
-        await self.join("examplebot")
+        await self.join("examplegroup")
 
     async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
         print("Connected to", room)
@@ -24,8 +25,8 @@ class MyBot(chatango.Client):
             await room.user.get_profile()
         
     async def on_message(self, message):
-        print(message.room.name, message.user.showname,
-              ascii(message.body)[1:-1])
+        print(time.strftime("%b/%d-%H:%M:%S", time.localtime(message.time)),
+              message.room.name, message.user.showname, ascii(message.body)[1:-1])
         if message.body.startswith("!a"):
             await message._room.send_message(f"Hello {message.user.showname}")
 
