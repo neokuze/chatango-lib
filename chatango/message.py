@@ -36,6 +36,12 @@ class Message(object):
         self._ip = str()
         self._unid = str()
         self._flags = dict()
+        self._mentions = list()
+
+    @property
+    def mentions(self):
+        return self._mentions
+
 
     @property
     def user(self):
