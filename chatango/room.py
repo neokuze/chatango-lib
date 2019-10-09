@@ -464,6 +464,12 @@ class Room(Connection):
             msg._user._ispremium = ispremium
             if evt:
                 await self.client._call_event("premium_change", msg._user, ispremium)
+        for match in re.findall("(\s)?@([a-zA-Z0-9]{1,20})(\s)?", msg._body):
+            for participant in self.userlist:
+                if participant.name.lower() == match[1].lower():
+                    if participant not in msg._mentions:
+                        msg._mentions.append(participant)
+
         self._mqueue[msg._msgid] = msg
 
     async def _rcmd_premium(self, args):  # TODO
