@@ -373,6 +373,7 @@ class Room(Connection):
         message = str(message)
         if not use_html:
             message = html.escape(message, quote=False)
+        message = message.replace('\n', '\r').replace('~', '&#126;')
         message = f'<n{self.user._nameColor}/><f x{self.user._fontSize}{self.user._fontColor}="{self.user._fontFace}">{message}</f>'
         await self._send_command("bm", "chlb", message_flags, message)
 
