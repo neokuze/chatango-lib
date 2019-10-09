@@ -40,12 +40,14 @@ class Message(object):
     @property
     def user(self):
         return self._user
+    
     @property
     def unid(self):
-        return self._unid    
+        return self._unid
+    
     @property
     def body(self):
-        return str(self._body) # ensure str
+        return ' '.join(str(self._body).replace('\n', ' ').split(' '))
 
     @property
     def time(self):
