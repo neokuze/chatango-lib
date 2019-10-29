@@ -67,8 +67,8 @@ class Connection:
         try:
             await self._connection.send_str(message)
         except Exception as error:
-            print(error,repr(error))
             raise NotConnectedError
+            
     async def _do_ping(self):
         await asyncio.sleep(20)
         # ping is an empty message
