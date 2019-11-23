@@ -27,21 +27,24 @@ specials = {
     'dbzepisodeorg': 10, 'watch-dragonball': 8, 'peliculas-flv': 69,
     'tvanimefreak': 54, 'tvtvanimefreak': 54
 }
-
 # order matters
 tsweights = [
-    (5, 75), (6, 75), (7, 75), (8, 75), (16, 75), (17, 75), (18, 75), (9, 95),
-    (11, 95), (12, 95), (13, 95), (14, 95), (15, 95), (19, 110), (23, 110),
-    (24, 110), (25, 110), (26, 110), (28, 104), (29, 104), (30, 104),
-    (31, 104), (32, 104), (33, 104), (35, 101), (36, 101), (37, 101),
-    (38, 101), (39, 101), (40, 101), (41, 101), (42, 101), (43, 101),
-    (44, 101), (45, 101), (46, 101), (47, 101), (48, 101), (49, 101),
-    (50, 101), (52, 110), (53, 110), (55, 110), (57, 110), (58, 110),
-    (59, 110), (60, 110), (61, 110), (62, 110), (63, 110), (64, 110),
-    (65, 110), (66, 110), (68, 95), (71, 116), (72, 116), (73, 116), (74, 116),
-    (75, 116), (76, 116), (77, 116), (78, 116), (79, 116), (80, 116),
-    (81, 116), (82, 116), (83, 116), (84, 116)
-]
+    [5, 75], [6, 75], [7, 75], [8, 75], [16, 75],
+    [17, 75], [18, 75], [9, 95], [11, 95], [12, 95],
+    [13, 95], [14, 95], [15, 95], [19, 110], [23, 110],
+    [24, 110], [25, 110], [26, 110], [28, 104], [29, 104],
+    [30, 104], [31, 104], [32, 104], [33, 104], [35, 101],
+    [36, 101], [37, 101], [38, 101], [39, 101], [40, 101],
+    [41, 101], [42, 101], [43, 101], [44, 101], [45, 101],
+    [46, 101], [47, 101], [48, 101], [49, 101], [50, 101],
+    [52, 110], [53, 110], [55, 110], [57, 110],
+    [58, 110], [59, 110], [60, 110], [61, 110],
+    [62, 110], [63, 110], [64, 110], [65, 110],
+    [66, 110], [68, 95], [71, 116], [72, 116],
+    [73, 116], [74, 116], [75, 116], [76, 116],
+    [77, 116], [78, 116], [79, 116], [80, 116],
+    [81, 116], [82, 116], [83, 116], [84, 116]
+    ]
 
 
 class RoomFlags(enum.IntFlag):
@@ -143,6 +146,7 @@ class Room(Connection):
         self._maxlen = 2900
         self._history = deque(maxlen=self._maxlen)
         self._bgmode = 1
+        self._nomore = False
         self.message_flags = 0
 
     def __repr__(self):
@@ -699,3 +703,35 @@ class Room(Connection):
         
     async def _rcmd_miu(self, args):
         await self.client._call_event('bg_reload', User(args[0]))
+    
+    async def _rcmd_updateprofile(self, args):
+        """Cuando alguien actualiza su perfil en un chat"""
+        user = User.get(args[0])
+        user._info = None
+        await self.client._call_event('update_profile', user)
+    
+    async def _rcmd_delete(self, args):
+        """Borrar un mensaje de mi vista actual"""
+        msg = self._msgs.get(args[0])
+        if msg and msg in self._history:
+            self._history.remove(msg)
+            await self.client._call_event("message_delete", msg.user, msg)
+            msg.detach()
+        # Si hay menos de 20 mensajes pero el chat tiene más, por que no
+        # pedirle otros tantos?
+        if len(self._history) < 20 and not self._nomore:
+            await self.client._send_command('get_more:20:0')
+
+    async def _rcmd_deleteall(self, args):
+        """Mensajes han sido borrados"""
+        user = None  # usuario borrado
+        msgs = list()  # mensajes borrados
+        for msgid in args:
+            msg = self._msgs.get(msgid)
+            if msg and msg in self._history:
+                self._history.remove(msg)
+                user = msg.user
+                msg.detach()
+                msgs.append(msg)
+        if msgs:
+            await self.client._call_event('delete_user', user, msgs)

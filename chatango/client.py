@@ -22,7 +22,10 @@ class Client:
         self._running = False
         self._default_user_name = None
         self._default_password = None
-
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
     async def join(self, room_name: str) -> Room:
         room_name = room_name.lower()
         if room_name in self._rooms:

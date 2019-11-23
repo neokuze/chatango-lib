@@ -38,19 +38,23 @@ class Message(object):
         self._flags = dict()
         self._mentions = list()
 
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
+
     @property
     def mentions(self):
         return self._mentions
 
-
     @property
     def user(self):
         return self._user
-    
+
     @property
     def unid(self):
         return self._unid
-    
+
     @property
     def body(self):
         return ' '.join(str(self._body).replace('\n', ' ').split(' '))
@@ -58,7 +62,7 @@ class Message(object):
     @property
     def time(self):
         return self._time
-    
+
     @property
     def flags(self):
         return self._flags

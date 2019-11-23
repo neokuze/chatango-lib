@@ -65,6 +65,10 @@ class User:
     def get(name):
         return User._users.get(name) or User(name)
     
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
     def __repr__(self):
         return "<User: %s>" % self.name
 

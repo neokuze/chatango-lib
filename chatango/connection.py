@@ -64,10 +64,10 @@ class Connection:
         else:
             terminator = "\r\n\0"
         message = ":".join(args) + terminator
-        try:
+        if not self._connection._closed:
             await self._connection.send_str(message)
-        except Exception as error:
-            raise NotConnectedError
+        else:
+            print(self.client.name, "No Internet")
             
     async def _do_ping(self):
         await asyncio.sleep(20)
