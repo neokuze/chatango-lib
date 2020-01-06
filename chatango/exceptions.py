@@ -1,4 +1,4 @@
-
+import asyncio
 class BaseRoomError(Exception):
     room_name: str
 
@@ -9,8 +9,18 @@ class BaseRoomError(Exception):
 
 
 class AlreadyConnectedError(BaseRoomError):
-    pass
+    def __init__(self, room_name: str, room=None):
+        super().__init__(room_name, room)
+        self.room_name = room_name
+        self.room = room
 
+    def check(self):    
+        return (self.room_name, self.room.connected, self.room.reconnect)
 
 class NotConnectedError(BaseRoomError):
-    pass
+    room_name: str
+
+    def __init__(self, room_name: str, room=None):
+        super().__init__(room_name, room)
+        self.room_name = room_name
+        self.room = room
