@@ -168,5 +168,3 @@ class Styles:
         self._no_refresh = False
         self._bgstyle = dict()
         self._profile = dict()
-
-
