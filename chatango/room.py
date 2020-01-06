@@ -428,13 +428,12 @@ class Room(Connection):
     async def _logout(self):
         await self._send_command("blogout")
 
-    async def send_message(self, message, use_html=False, delete_after=0):
+    async def send_message(self, message, use_html=False):
         message_flags = str(self.message_flags+self.badge) or str(0+self.badge)
         message = str(message)
         if not use_html:
             message = html.escape(message, quote=False)
-        if bool(delete_after):
-            self._del_dict[random.randint(1000000,39000000)]={"t": time.time()+int(delete_after), "m": message}
+   
         message = message.replace('\n', '\r').replace('~', '&#126;')
         message = f'<n{self.user._nameColor}/><f x{self.user._fontSize}{self.user._fontColor}="{self.user._fontFace}">{message}</f>'
         await self._send_command("bm", "chlb", message_flags, message)
