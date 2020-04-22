@@ -6,28 +6,39 @@ import typing, time
 from .pm import PM
 from .room import Room
 from .exceptions import AlreadyConnectedError, NotConnectedError
-
+from .utils import Fonts, Task
 
 class Client:
     def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None):
         if aiohttp_session is None:
-            aiohttp_session = aiohttp.ClientSession(headers={"Connection": "close"})
+            aiohttp_session = aiohttp.ClientSession()
 
         self.aiohttp_session = aiohttp_session
         self.loop = self.aiohttp_session.loop
         self.pm = PM(self)
 
-        self.debug = True
-        self._rooms = {}
-        self.__rcopy = {}
+        self.silent = int(2)
+        self.debug = 2
+
         self._running = False
+        self._rooms = {}
+        self.errors = []
+        self.__rcopy = {}
+        self._using_accounts = None
         self._default_user_name = None
         self._default_password = None
+        
     def __dir__(self):
         return [x for x in
                 set(list(self.__dict__.keys()) + list(dir(type(self)))) if
                 x[0] != '_']
-    
+    @property
+    def accounts(self):
+        if self._using_accounts:
+            return [(x, self._using_accounts[x][0]) for x in range(
+                len(self._using_accounts))]
+        return None
+
     async def join(self, room_name: str) -> Room:
         room_name = room_name.lower()
         if room_name in self._rooms:
@@ -46,23 +57,26 @@ class Client:
         # has to be in the dict until it's fully disconnected
         if room_name in self._rooms and self._rooms[room_name]._connection is not None:
             if reconnect == None:
-                _reconnect = self.get_room(room_name).reconnect
+                reconnect = self.get_room(room_name).reconnect
             else:
-                _reconnect = self.get_room(room_name)._reconnect = reconnect        
-            await self._rooms[room_name]._connection.close()
+                reconnect = self.get_room(room_name)._reconnect = reconnect
+            await self._rooms[room_name]._connection.close()      
             self._rooms[room_name]._recv_task.cancel()
             self._rooms[room_name]._ping_task.cancel()
-            del self._rooms[room_name]
-            if _reconnect == True:
+            if room_name in self._rooms:
+                del self._rooms[room_name]
+            if not reconnect: await self._call_event("disconnect", room_name)
+            if reconnect == True:
                 await self.join(room_name)
+                await self._call_event("reconnect", room_name)
         return True
 
     async def start(self):
         self._running = True
-        if self._default_user_name and self._default_password and self._default_pm:
-            await self.pm.connect(self._default_user_name, self._default_password)
         await self._call_event("init")
-        asyncio.create_task(self._tasks())
+        if self._default_user_name and self._default_password and self._default_pm == True:
+            await self.pm.connect(self._default_user_name, self._default_password)
+        await self._call_event("start")
 
     @property
     def rooms(self):
@@ -84,35 +98,35 @@ class Client:
         self.__rcopy.clear()
         return True
 
-    def default_user(self, user_name: str, password: typing.Optional[str] = None, pm=False):
+    def default_user(self, user_name: str, password: typing.Optional[str] = None, pm=True, accounts=None):
+        self._using_accounts = accounts # [[user, pass]]
         self._default_user_name = user_name
         self._default_password = password
         self._default_pm = pm
 
     async def stop(self):
-        for room in list(self._rooms):
-            if self._rooms[room]._connection != None:
-                await self._rooms[room]._connection.close()
+        if self.pm._connected == True:
+            self.pm._connection.close()
+            self.pm._ping_task.cancel()
+            self.pm._recv_task.cancel()
+            print(f"Disconnected from {self.pm}")
         for room in self.rooms:
-            room._recv_task.cancel()
-            room._ping_task.cancel()
-            if room.name in self._rooms:
-                del self.rooms[room.name]
+            await self.leave(room.name, reconnect=False)
         self._running = False
 
-    async def enableBg(self, active=True):
+    async def enable_bg(self, active=True):
         """Enable background if available."""
         self.bgmode = active
         for room in self._rooms:
-            await self._rooms[room].setBgMode(int(active))
+            await self._rooms[room].set_bg_mode(int(active))
 
     @property
     def running(self):
         return self._running
 
     async def on_event(self, event: str, *args: typing.Any, **kwargs: typing.Dict[str, typing.Any]):
-        if self.debug:
-            pass
+        if int(self.debug) == 3:
+            print(event, repr(args), repr(kwargs))
 
     async def _call_event(self, event: str, *args, **kwargs):
         attr = f"on_{event}"
@@ -127,3 +141,43 @@ class Client:
         else:
             event_name = name
         setattr(self, event_name, func)
+
+
+    def set_font_color(self, hexfont):
+        for x in list(self.rooms):
+            x.user._fontColor = str(hexfont)
+
+    def set_font_face(self, facenum):
+        """ @param facenum: El número de la fuente en un string """
+        fuente = str(Fonts.get(str(facenum).lower(), facenum))
+
+        for x in list(self.rooms):
+            x.user._fontFace = fuente
+
+    def set_font_size(self, sizenum):
+        """Cambiar el tamaño de la fuente TODO para la sala"""
+        size = str(sizenum)
+
+        for x in list(self.rooms):
+            x.user._fontSize = size
+            
+    def set_interval(self, tiempo, funcion, *args, **kwargs):
+        """
+        Llama a una función cada intervalo con los argumentos indicados
+        @param funcion: La función que será invocada
+        @type tiempo int
+        @param tiempo:intervalo
+        """
+        task = Task(tiempo, funcion, True, *args, **kwargs)
+        
+        return task
+
+    def set_timeout(self, tiempo, funcion, *args, **kwargs):
+        """
+        Llama a una función cada intervalo con los argumentos indicados
+        @param tiempo: Tiempo en segundos hasta que se ejecute la función
+        @param funcion: La función que será invocada
+        """
+        task = Task(tiempo, funcion, False, *args, **kwargs)
+        
+        return task
