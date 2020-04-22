@@ -30,6 +30,7 @@ class Message(object):  # base
     def __init__(self):
         self._user = None
         self._room = None
+        self._channel = None
         self._nameColor = str("000000")
         self._fontColor = str("000000")
         self._fontSize = 12
@@ -49,6 +50,10 @@ class Message(object):  # base
     @property
     def user(self):
         return self._user
+
+    @property
+    def channel(self):
+        return self._channel
 
     @property
     def room(self):
@@ -82,7 +87,8 @@ class Message(object):  # base
 class PMBase(Message):
     def __init__(self):
         self._msgoff = False
-
+        self._flags = str(0)
+        
     @property
     def msgoff(self):
         return self._msgoff
@@ -90,7 +96,7 @@ class PMBase(Message):
 
 class RoomBase(Message):
     def __init__(self, ):
-        self._msgid = None
+        self._id = None
         self._puid = int()
         self._ip = str()
         self._unid = str()
@@ -98,8 +104,8 @@ class RoomBase(Message):
         self._mentions = list()
 
     @property
-    def msgid(self):
-        return self._msgid
+    def id(self):
+        return self._id
 
     @property
     def mentions(self):
@@ -118,19 +124,19 @@ class RoomBase(Message):
         return self._ip
 
     def attach(self, room, msgid):
-        if self._msgid is not None:
+        if self._id is not None:
             self._room = room
-            self._msgid = msgid
-            self._room._msgs.update({msgid: self})
+            self._id = msgid
+            self._room._msgs.update({id: self})
 
     def detach(self):
-        if self._msgid is not None and self._msgid in self._room._msgs:
-            self._room._msgs.pop(self._msgid)
+        if self._id is not None and self._id in self._room._msgs:
+            self._room._msgs.pop(self._id)
 
 
 async def _process(room, args):
     """Process message"""
-    _time = float(args[0]) - 0
+    _time = float(args[0]) - room._correctiontime
     name, tname, puid, unid, msgid, ip, flags = args[1:8]
     body = ":".join(args[9:])
     msg = RoomBase()
@@ -138,7 +144,7 @@ async def _process(room, args):
     msg._time = float(_time)
     msg._puid = str(puid)
     msg._tempname = tname
-    msg._msgid = msgid
+    msg._id = msgid
     msg._unid = unid
     msg._ip = ip
     msg._body = html.unescape(
@@ -163,11 +169,14 @@ async def _process(room, args):
             msg._nameColor = n
         else:
             msg._nameColor = None
+    if isanon:
+        msg._nameColor = str(msg._room._connectiontime).split('.')[0][-4:]
     msg._user = User(name, ip=ip, isanon=isanon)
     msg._fontSize, msg._fontColor, msg._fontFace = _parseFont(f.strip())
     msg._user.setName(name)
     msg._flags = MessageFlags(int(flags))
     msg._mentions = mentions(msg._body, room)
+    msg._channel = channel(msg._room, msg._user)
     ispremium = MessageFlags.PREMIUM in msg._flags
     if msg._user.ispremium != ispremium:
         evt = msg._user._ispremium != None and ispremium != None and _time > time.time() - 5
@@ -196,8 +205,14 @@ async def _process_pm(room, args):
     msg._fontSize = fontSize
     msg._fontColor = fontColor
     msg._fontFace = fontFace
+    msg._channel = channel(msg._room, msg._user)
     return msg
 
+def message_cut(message, lenth):
+    result = []
+    for o in [message[x:x + lenth] for x in range(0, len(message), lenth)]:
+        result.append(o)
+    return result 
 
 def mentions(body, room):
     t = []
@@ -207,3 +222,45 @@ def mentions(body, room):
                 if participant not in t:
                     t.append(participant)
     return t
+
+class channel:
+    def __init__(self, room, user):
+        self.is_pm = True if room.name == "<PM>" else False
+        self.user = user
+        self.room = room
+
+    async def send(self, message, use_html=False):
+        messages = message_cut(message, self.room._maxlen)
+        for message in messages:
+            if self.is_pm:
+                await self.room.client.pm.send_message(self.user.name, message, use_html=use_html)
+            else:
+                await self.room.send_message(message, use_html=use_html)
+
+    async def send_pm(self, message):
+        self.is_pm = True
+        await self.send(message)
+
+def format_videos( user, pmmessage):
+    msg = pmmessage
+    tag = 'i'
+    r = []
+    for word in msg.split(' '):
+        if msg.strip() != "":
+            regx = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?(?P<id>[A-Za-z0-9\-=_]{11})') #"<" + tag + "(.*?)>", msg)
+            match = regx.match(word)
+            w = "<g x{0._fontSize}s{0._fontColor}=\"{0._fontFace}\">".format(user)
+            if match:
+                seek = match.group('id')
+                word = f"<i s=\"vid','//yt','{seek}\" w=\"126\" h=\"93\"/>{w}"
+                r.append(word)
+            else:
+                if not r:
+                    r.append(w+word)
+                else:
+                    r.append(word)
+            count = len([x for x in r if x == w])
+            print(count)
+
+    print(r)
+    return " ".join(r)
