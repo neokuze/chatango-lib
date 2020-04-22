@@ -241,26 +241,26 @@ class channel:
         self.is_pm = True
         await self.send(message)
 
-def format_videos( user, pmmessage):
-    msg = pmmessage
-    tag = 'i'
-    r = []
-    for word in msg.split(' '):
-        if msg.strip() != "":
-            regx = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?(?P<id>[A-Za-z0-9\-=_]{11})') #"<" + tag + "(.*?)>", msg)
-            match = regx.match(word)
-            w = "<g x{0._fontSize}s{0._fontColor}=\"{0._fontFace}\">".format(user)
-            if match:
-                seek = match.group('id')
-                word = f"<i s=\"vid','//yt','{seek}\" w=\"126\" h=\"93\"/>{w}"
-                r.append(word)
-            else:
-                if not r:
-                    r.append(w+word)
-                else:
-                    r.append(word)
-            count = len([x for x in r if x == w])
-            print(count)
+# def format_videos( user, pmmessage): #TODO TESTING
+#     msg = pmmessage
+#     tag = 'i'
+#     r = []
+#     for word in msg.split(' '):
+#         if msg.strip() != "":
+#             regx = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?(?P<id>[A-Za-z0-9\-=_]{11})') #"<" + tag + "(.*?)>", msg)
+#             match = regx.match(word)
+#             w = "<g x{0._fontSize}s{0._fontColor}=\"{0._fontFace}\">".format(user)
+#             if match:
+#                 seek = match.group('id')
+#                 word = f"<i s=\"vid','//yt','{seek}\" w=\"126\" h=\"93\"/>{w}"
+#                 r.append(word)
+#             else:
+#                 if not r:
+#                     r.append(w+word)
+#                 else:
+#                     r.append(word)
+#             count = len([x for x in r if x == w])
+#             print(count)
 
     print(r)
     return " ".join(r)
