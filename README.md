@@ -19,7 +19,6 @@ so when i can, i will remove the "copied content" and make it myself.
 
 ### How to install
 ## Linux
-`git clone https://github.com/neokuze/chatango-lib`
-`cd chatango-lib`
+`git clone https://github.com/neokuze/chatango-lib && cd chatango-lib`
 ## wherever is the setup.py
 `$ pip install --user .`
