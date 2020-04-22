@@ -28,6 +28,7 @@ class MyBot(chatango.Client):
     async def on_message(self, message):
         print(time.strftime("%b/%d-%H:%M:%S", time.localtime(message.time)),
               message.room.name, message.user.showname, ascii(message.body)[1:-1])
+        if message.room == "<PM>" and message.msgoff == True: return
         if message.body.startswith("!a"):
             await message.channel.send(f"Hello {message.user.showname}")
 
