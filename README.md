@@ -18,6 +18,8 @@ so when i can, i will remove the "copied content" and make it myself.
 3-A little knowledge of asyncio
 
 ### How to install
-cd (change directory) wherever is the setup.py
-
+## Linux
+`git clone https://github.com/neokuze/chatango-lib`
+`cd chatango-lib`
+## wherever is the setup.py
 `$ pip install --user .`
