@@ -241,7 +241,7 @@ class channel:
         self.is_pm = True
         await self.send(message)
 
-# def format_videos( user, pmmessage): #TODO TESTING
+def format_videos( user, pmmessage): pass #TODO TESTING
 #     msg = pmmessage
 #     tag = 'i'
 #     r = []
@@ -262,5 +262,5 @@ class channel:
 #             count = len([x for x in r if x == w])
 #             print(count)
 
-    print(r)
-    return " ".join(r)
+#     print(r)
+#     return " ".join(r)
