@@ -7,7 +7,7 @@ with open("requirements.txt") as f:
     requirements = f.read().splitlines()
 
 version = ''
-with open('discord/__init__.py') as f:
+with open('chatango/__init__.py') as f:
     version = re.search(
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', f.read(), re.MULTILINE).group(1)
 
@@ -21,7 +21,7 @@ setup(name="chatango.py",
       url="https://github.com/neokuze/chatango-lib",
       version=version,
       packages=["chatango"],
-      license="MIT",
+      license="GPL-3.0",
       description="A Python library for connecting to Chatango",
       long_description=readme,
       long_description_content_type="text/markdown",
