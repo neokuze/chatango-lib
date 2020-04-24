@@ -2,7 +2,7 @@
 Module for room related stuff
 """
 
-from .utils import gen_uid, getAnonName, _clean_message, _parseFont, _id_gen
+from .utils import gen_uid, get_anon_name, _clean_message, _parseFont, _id_gen
 from .connection import Connection
 from .message import Message, MessageFlags, _process, mentions
 from .user import User, ModeratorFlags, AdminFlags
@@ -128,7 +128,7 @@ class Room(Connection):
 
     def __init__(self, client, name: str):
         if name in client._rooms:
-            return  # http://ust.chatango.com/groupinfo/f/a/farminggames/gprofile.xml
+            return
         super().__init__(client)
         self.name = name
         self.server = get_server(name)
@@ -490,7 +490,7 @@ class Room(Connection):
         self._login_as = args[2]
         self._flags = RoomFlags(int(args[7]))
         if self._login_as == 'C':
-            self._user = User(getAnonName(self._puid, str(
+            self._user = User(get_anon_name(self._puid, str(
                 self._connectiontime)), isanon=True, ip=self._currentIP)
         elif self._login_as == 'M':
             self._user = User(self._currentname,
@@ -583,7 +583,7 @@ class Room(Connection):
                 if tname != 'None':
                     name = tname
                 else:
-                    name = getAnonName(puid, contime)
+                    name = get_anon_name(puid, contime)
             user = User(name, isanon=isanon, puid=puid)
             if user in ({self._owner} | self.mods):
                 user.setName(name)
@@ -603,7 +603,7 @@ class Room(Connection):
             if tname != 'None':
                 name = tname
             else:
-                name = getAnonName(puid, contime)
+                name = get_anon_name(puid, contime)
             isanon = True
         user = User(name, isanon=isanon, puid=puid, ip=unknown)
         user.setName(name)
@@ -884,7 +884,7 @@ class Room(Connection):
         """Me he desconectado, ahora usaré mi nombre de anon"""
         if self.silent:
             self._silent = False
-        name = getAnonName(self._puid,
+        name = get_anon_name(self._puid,
                            str(self._connectiontime))
         self._user = User(name, nameColor=str(self._connectiontime).split('.')[
                           0][-4:], isanon=True, ip=self._currentIP)
