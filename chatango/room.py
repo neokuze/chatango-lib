@@ -133,7 +133,6 @@ class Room(Connection):
         self.name = name
         self.server = get_server(name)
         self._uid = gen_uid()
-        self._correctiontime = 0
         self._bwqueue = str()
         self._user = None
         self._silent = False
@@ -155,7 +154,7 @@ class Room(Connection):
         self._bgmode = 0
         self._reconnect = True
         self._nomore = False
-        self._connectiontime = 0
+        self._connectiontime = None
         self.message_flags = 0
         self._announcement = [0, 0, '']
         self._badge = 0
@@ -481,17 +480,17 @@ class Room(Connection):
 
     async def _rcmd_ok(self, args):  # TODO
         self._connected = True
+        self._correctiontime = 0
         self._owner = User(args[0])
         self._puid = args[1]
         self._currentname = args[3]
         self._connectiontime = args[4]
-        self._correctiontime = int(float(self._connectiontime) - time.time())
         self._currentIP = args[5]
         self._login_as = args[2]
         self._flags = RoomFlags(int(args[7]))
         if self._login_as == 'C':
-            self._user = User(get_anon_name(self._puid, str(
-                self._connectiontime)), isanon=True, ip=self._currentIP)
+            self._user = User(get_anon_name(
+                args[4].split(".")[0][-4:], self._puid), isanon=True, ip=self._currentIP)
         elif self._login_as == 'M':
             self._user = User(self._currentname,
                               puid=self._puid, ip=self._currentIP)
@@ -578,12 +577,12 @@ class Room(Connection):
             name = data[3]
             tname = data[4]
             isanon = False
-            if name == 'None':
+            if str(name) == 'None':
                 isanon = True
-                if tname != 'None':
+                if str(tname) != 'None':
                     name = tname
                 else:
-                    name = get_anon_name(puid, contime)
+                    name = get_anon_name(contime.split(".")[0][-4:], puid[-4:])
             user = User(name, isanon=isanon, puid=puid)
             if user in ({self._owner} | self.mods):
                 user.setName(name)
@@ -597,13 +596,13 @@ class Room(Connection):
         name = args[3]  # username
         tname = args[4]  # Anon Name
         unknown = args[5]  # ip
-        contime = args[6]  # time
+        contime = args[6] # time
         isanon = False
         if name == 'None':
             if tname != 'None':
                 name = tname
             else:
-                name = get_anon_name(puid, contime)
+                name = get_anon_name(contime.split(".")[0][-4:], puid[-4:])
             isanon = True
         user = User(name, isanon=isanon, puid=puid, ip=unknown)
         user.setName(name)
@@ -842,14 +841,6 @@ class Room(Connection):
         # print(f"{self.name}_rcmd_show_fw ->", args)
         pass  # Show flood warning
 
-    async def _rcmd_show_tb(self, args):
-        # print(f"{self.name}_rcmd_show_tb", args)
-        pass  # Show time ban
-
-    async def _rcmd_tb(self, args):
-        # print("{self.name}_rcmd_tb", args)
-        pass
-
     async def _rcmd_ubw(self, args):  # TODO palabas desbaneadas ?)
         self._ubw = args
         # print(f"{self.name}_rcmd_ubw", args)
@@ -866,11 +857,6 @@ class Room(Connection):
         # print(f"{self.name}_rcmd_nlptb", args)
         pass  # Auto moderation temporary ban
 
-    async def _rcmd_show_tb(self, args):
-        """Mostrar notificación de temporary ban"""
-        # print(f"{self.name}_rcmd_show_tb", args)
-        await self.client._call_event("flood_ban", int(args[0]))
-
     async def _rcmd_tb(self, args):
         """Temporary ban sigue activo con el tiempo indicado"""
         # print(f"{self.name}_rcmd_tb", args)
@@ -884,8 +870,8 @@ class Room(Connection):
         """Me he desconectado, ahora usaré mi nombre de anon"""
         if self.silent:
             self._silent = False
-        name = get_anon_name(self._puid,
-                           str(self._connectiontime))
+        name = get_anon_name(self._connectiontime.split(".")[0][-4:], self._puid
+            )
         self._user = User(name, nameColor=str(self._connectiontime).split('.')[
                           0][-4:], isanon=True, ip=self._currentIP)
         # TODO fail aquiCLOSE
