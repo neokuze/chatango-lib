@@ -95,8 +95,11 @@ async def get_token(user_name, passwd):
 async def sessionget(session, url):
     async with session.get(url) as resp:
         assert resp.status == 200
-        resp = await resp.text()
-        return resp
+        try:
+            resp = await resp.text()
+            return resp
+        except:
+            return None
 
 async def make_requests(urls):
     r = {}
@@ -151,7 +154,8 @@ def _strip_html(msg: str) -> str:
 def _id_gen():
     return ''.join(random.choice(string.ascii_uppercase) for i in range(4)).lower()
 
-def getAnonName(puid: str, tssid: str) -> str:
+def get_anon_name(tssid: str, puid: str) -> str:
+    tssid = str(tssid)
     result = []
     if len(puid) > 8:
         puid = puid[:8]

@@ -192,13 +192,15 @@ class User: #TODO a new format for users
             return
         if not self.isanon:
             tasks = await make_requests(self._links[2:])
-            fullprof = tasks["mod2"].result()
             aboutme = tasks["mod1"].result()
             about = aboutme.replace("<?xml version=\"1.0\" ?>", "")
-            if str(fullprof)[:5] == "<?xml":
-                self._profile["full"] = html.unescape(fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0]).replace("%20", " ").replace("\n", " ")
             self._profile["about"] = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', about)])
-
+            try:
+                fullprof = tasks["mod2"].result()
+                if fullprof is not None and str(fullprof)[:5] == "<?xml":
+                    self._profile["full"] = html.unescape(fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0]).replace("%20", " ").replace("\n", " ")
+            except:
+                pass
 
 class Styles:
     def __init__(self):
