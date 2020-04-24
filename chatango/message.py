@@ -4,7 +4,7 @@ import string
 import time
 import enum
 
-from .utils import gen_uid, getAnonName, _clean_message, _parseFont
+from .utils import gen_uid, get_anon_name, _clean_message, _parseFont
 from .user import User
 
 
@@ -151,16 +151,15 @@ async def _process(room, args):
         re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
     )
     body, n, f = _clean_message(body)
-    msg._raw = ":".join(args)
+    msg._raw = args
     isanon = False
     if not name:
         if not tname:
-            if n.isdigit():
-                name = getAnonName(puid, n)
-            elif n and all(x in string.hexdigits for x in n):
-                name = getAnonName(puid, str(int(n, 16)))
+            ts = re.search("<n(.*?)/>", ":".join(args[9:]))
+            if not isinstance(ts, type(None)):
+                name = get_anon_name(ts.group(1), puid)
             else:
-                name = getAnonName(puid, None)
+                name = get_anon_name("", puid)
         else:
             name = tname
         isanon = True
