@@ -2,11 +2,11 @@
 Module for user related stuff
 """
 import enum
-import aiohttp
+import aiohttp, asyncio
 from collections import deque
 import json
-import re
-
+import re, time, html
+from .utils import make_requests
 
 class ModeratorFlags(enum.IntFlag):
     DELETED = 1 << 0
@@ -35,7 +35,7 @@ AdminFlags = (ModeratorFlags.EDIT_MODS | ModeratorFlags.EDIT_RESTRICTIONS |
               ModeratorFlags.EDIT_GROUP | ModeratorFlags.EDIT_GP_ANNC)
 
 
-class User:
+class User: #TODO a new format for users
     _users = {}
 
     def __new__(cls, name, **kwargs):
@@ -58,27 +58,60 @@ class User:
         self._showname = name
         self._ispremium = None
         self._puid = str()
+        self._client = None
         for attr, val in kwargs.items():
             setattr(self, '_' + attr, val)
         return self
-    
+
     def get(name):
         return User._users.get(name) or User(name)
-    
+
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
+
     def __repr__(self):
-        return "<User: %s>" % self.name
+        return "<User: %s>" % self.showname
+
+    @property
+    def get_user_dir(self):
+        if not self.isanon:
+            return '/%s/%s/' % ('/'.join((self.name * 2)[:2]), self.name)
 
     @property
     def fullpic(self):
         if not self.isanon:
-            link = '/%s/%s/' % ('/'.join((self.name * 2)[:2]), self.name)
-            fp = f"http://fp.chatango.com/profileimg{link}full.jpg"
-            return fp
+            return f"{self._fp}{self.get_user_dir}full.jpg"
         return False
+
+    @property
+    def msgbg(self):
+        if not self.isanon:
+            return f"{self._fp}{self.get_user_dir}msgbg.jpg"
+        return False
+
+    @property
+    def thumb(self):
+        if not self.isanon:
+            return f"{self._fp}{self.get_user_dir}thumb.jpg"
+        return False
+
+    @property
+    def _fp(self):
+        return "http://fp.chatango.com/profileimg"
+
+    @property
+    def _ust(self):
+        return "http://ust.chatango.com/profileimg"
 
     @property
     def name(self):
         return self._name
+
+    @property
+    def blend_name(self):
+        return self._blend_name
 
     @property
     def ispremium(self):
@@ -87,7 +120,7 @@ class User:
     @property
     def showname(self):
         return self._showname
-    
+
     @property
     def default(self):
         size = str(self._fontSize)
@@ -105,7 +138,21 @@ class User:
     @property
     def bg_on(self):
         return int(self._usebackground)
-        
+
+    @property    
+    def _links(self):
+        return [["msgstyles", f"{self._ust}{self.get_user_dir}msgstyles.json"],
+                ["msgbg", f"{self._ust}{self.get_user_dir}msgbg.xml"],
+                ["mod1", f"{self._ust}{self.get_user_dir}mod1.xml"],
+                ["mod2", f"{self._ust}{self.get_user_dir}mod2.xml"]]
+    @property
+    def aboutme(self):
+        return self.profile["about"]
+
+    @property
+    def main_profile(self):
+        return self.profile["full"]
+
     @property
     def isanon(self):
         return self._isanon
@@ -128,29 +175,29 @@ class User:
             if len(self._sids[room]) == 0:
                 del self._sids[room]
 
-    async def get_profile(self):
+    async def get_styles(self):
         if not self.isanon:
-            link = '/%s/%s/' % ('/'.join((self.name * 2)[:2]), self.name)
-            async with aiohttp.ClientSession() as session:
-                if self._no_refresh == False:
-                    self._no_refresh = True
-                    async with session.get(f"http://ust.chatango.com/profileimg{link}msgstyles.json") as resp:
-                        resp = json.loads(await resp.text())
-                        self._nameColor, self._fontFace, self._fontSize, self._fontColor = resp["nameColor"], int(
-                            resp["fontFamily"]), int(resp["fontSize"]), resp["textColor"]
-                        self._usebackground = int(resp["usebackground"])
+            tasks = await make_requests(self._links[:2])
+            msgs = tasks["msgstyles"].result()
+            msgbg = tasks["msgbg"].result()
+            dstyles = json.loads(msgs)
+            bg = msgbg.replace("<?xml version=\"1.0\" ?>", "")
+            self._nameColor, self._fontFace = dstyles["nameColor"], int(dstyles["fontFamily"])
+            self._fontSize, self._fontColor = int(dstyles["fontSize"]), dstyles["textColor"]
+            self._usebackground = int(dstyles["usebackground"])
+            self._bgstyle = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', bg)])
 
-                    async with session.get(f"http://ust.chatango.com/profileimg{link}msgbg.xml") as resp:
-                        text = await resp.text()
-                        text = text.replace("<?xml version=\"1.0\" ?>", "")
-                        self._bgstyle = dict([url.replace('"', '').split(
-                            "=") for url in re.findall('(\w+=".*?")', text)])
-
-                    async with session.get(f"http://ust.chatango.com/profileimg{link}mod1.xml") as resp:
-                        text = await resp.text()
-                        text = text.replace("<?xml version=\"1.0\" ?>", "")
-                        self._profile = dict([url.replace('"', '').split(
-                            "=") for url in re.findall('(\w+=".*?")', text)[1:]])
+    async def get_main_profile(self):
+        if self._profile['about']:
+            return
+        if not self.isanon:
+            tasks = await make_requests(self._links[2:])
+            fullprof = tasks["mod2"].result()
+            aboutme = tasks["mod1"].result()
+            about = aboutme.replace("<?xml version=\"1.0\" ?>", "")
+            if str(fullprof)[:5] == "<?xml":
+                self._profile["full"] = html.unescape(fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0]).replace("%20", " ").replace("\n", " ")
+            self._profile["about"] = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', about)])
 
 
 class Styles:
@@ -161,8 +208,88 @@ class Styles:
         self._fontFace = 1
         self._usebackground = 0
 
-        self._no_refresh = False
+        self._blend_name = None
         self._bgstyle = dict()
-        self._profile = dict()
+        self._profile = dict(about=dict(), full=dict())
 
+class Friend:
+    _FRIENDS = dict()
+    def __init__(self, user, client = None): 
+        self.user = User(user)
+        self.name = self.user.name
+        self._client = client
+        self._status = None
+        self.idle = None
+        self.last_active = None
 
+    def  __repr__(self):
+        if self.is_friend():
+            return f"<Friend {self.name}>"
+        return f"<User: {self.name}>"
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def showname(self):
+        return self.user.showname
+
+    @property
+    def client(self):
+        return self._client
+
+    @property
+    def status(self):
+        return self._status
+
+    def is_friend(self):
+        if self.client and not self.user.isanon:
+            if self.name in self.client.friends:
+                return True
+            return False
+        return None 
+
+    async def friend_request(self):
+        """
+        Send a friend request
+        """
+        if self.is_friend() == False:
+            return await self.client.add_friend(self.name)
+
+    async def unfriend(self):
+        """
+        Delete friend
+        """
+        if self.is_friend() == True:
+            return await self.client.unfriend(self.name)
+
+    def is_online(self):
+        return self.status == "online"
+
+    def is_offline(self):
+        return self.status in ["offline", "app"]
+    
+    def is_on_app(self):
+        return self.status == "app"
+    
+    async def send_message(self, message):
+        if self.client:
+            await self.client.send_message(self.name, message)
+
+    async def _check_status(self, _time=None, idle_time=None): # TODO
+        """
+        Check status:
+        @parasm _time: time
+        @parasm idle_time: time of user
+        ##
+        """
+        if _time == None and idle_time == None or self.user.isanon:
+            self.idle = None
+            self.last_active = None
+            return 
+        if self.status == "on" and int(idle_time) >= 1:
+            self.idle = True
+            self.last_active = time.time() - (int(idle_time) * 60)
+        else:
+            self.idle = False
+            self.last_active = float(_time)
