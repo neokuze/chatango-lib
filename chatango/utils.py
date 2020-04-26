@@ -156,6 +156,7 @@ def _id_gen():
 
 def get_anon_name(tssid: str, puid: str) -> str:
     tssid = str(tssid)
+    puid = str(puid)
     result = []
     if len(puid) > 8:
         puid = puid[:8]
