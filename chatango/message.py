@@ -25,7 +25,11 @@ class MessageFlags(enum.IntFlag):
     CHANNEL_PINK = 1 << 14
     CHANNEL_MOD = 1 << 15
 
-
+Fonts = {
+    '0': 'arial', '1': 'comic', '2': 'georgia', '3': 'handwriting', '4': 'impact',
+    '5': 'palatino', '6': 'papirus', '7': 'times', '8': 'typewriter'
+    }
+    
 class Message(object):  # base
     def __init__(self):
         self._user = None
@@ -110,6 +114,10 @@ class RoomBase(Message):
     @property
     def mentions(self):
         return self._mentions
+
+    @property
+    def puid(self):
+        return self._puid
 
     @property
     def unid(self):

@@ -433,8 +433,10 @@ class Room(Connection):
 
     async def set_bg_mode(self, mode):
         self._bgmode = mode
-        if self.connected and self.user.ispremium:
-            await self._send_command('msgbg', str(self._bgmode))
+        if self.connected:
+            await self._send_command("getpremium", "l")
+            if self.user.ispremium:
+                await self._send_command('msgbg', str(self._bgmode))
 
     async def _disconnect(self):
         self._connected = False
@@ -507,7 +509,8 @@ class Room(Connection):
 
     async def _style_init(self, user):
         if not user.isanon:
-            await user.get_styles()
+            if self.user.ispremium:
+                await user.get_styles()
             await user.get_main_profile()
         else:
             self.set_font("namecolor", "000000")
@@ -544,9 +547,9 @@ class Room(Connection):
         self._mqueue[msg._id] = msg
 
     async def _rcmd_premium(self, args):  # TODO
-        # print
         if self._bgmode and (args[0] == '210' or (
                 isinstance(self, Room) and self._owner == self.user)):
+            self.user._ispremium = True
             await self._send_command('msgbg', str(self._bgmode))
 
     async def _rcmd_show_fw(self, args=None):

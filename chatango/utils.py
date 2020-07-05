@@ -8,10 +8,6 @@ import html
 import re, string, time
 import asyncio, aiohttp
 
-Fonts = {
-    'arial':    0, 'comic': 1, 'georgia': 2, 'handwriting': 3, 'impact': 4,
-    'palatino': 5, 'papirus': 6, 'times': 7, 'typewriter': 8
-    }
 
 class Task:
     ALIVE = False
@@ -155,8 +151,8 @@ def _id_gen():
     return ''.join(random.choice(string.ascii_uppercase) for i in range(4)).lower()
 
 def get_anon_name(tssid: str, puid: str) -> str:
-    tssid = str(tssid)
     puid = str(puid)
+    tssid = str(tssid)
     result = []
     if len(puid) > 8:
         puid = puid[:8]

@@ -6,7 +6,8 @@ import typing, time
 from .pm import PM
 from .room import Room
 from .exceptions import AlreadyConnectedError, NotConnectedError
-from .utils import Fonts, Task
+from .utils import Task
+from .message import Fonts
 
 class Client:
     def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None):
@@ -24,6 +25,7 @@ class Client:
         self._rooms = {}
         self.errors = []
         self.__rcopy = {}
+        self.__reconnect = []
         self._using_accounts = None
         self._default_user_name = None
         self._default_password = None
@@ -67,8 +69,8 @@ class Client:
                 del self._rooms[room_name]
             if not reconnect: await self._call_event("disconnect", room_name)
             if reconnect == True:
-                await self.join(room_name)
                 await self._call_event("reconnect", room_name)
+                await self.join(room_name)
         return True
 
     async def start(self):
@@ -77,6 +79,7 @@ class Client:
         if self._default_user_name and self._default_password and self._default_pm == True:
             await self.pm.connect(self._default_user_name, self._default_password)
         await self._call_event("start")
+        asyncio.create_task(self._dead_rooms)
 
     @property
     def rooms(self):
@@ -181,3 +184,9 @@ class Client:
         task = Task(tiempo, funcion, False, *args, **kwargs)
         
         return task
+
+    async def _dead_rooms(self): # Reconnect 
+        while True: 
+            _ = [await self.leave(room) for room in self._rooms 
+              if self._rooms[room].connection == None or self._rooms[room].connection.closed]
+            await asyncio.sleep(1)

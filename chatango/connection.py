@@ -15,7 +15,7 @@ class Connection:
         self._recv_task = None
         self._ping_task = None
         self._first_command = True
-        self._reconnect = True
+        
 
     async def connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         if self.connected:
@@ -43,12 +43,7 @@ class Connection:
 
     async def _do_recv(self):
         while True:
-            try:
-                message = await self._connection.receive()
-            except:
-                if self._connection.closed == True:
-                    self._reconnect = True
-                    break
+            message = await self._connection.receive()
             assert message.type is aiohttp.WSMsgType.TEXT
             if not message.data:
                 # pong
@@ -58,10 +53,9 @@ class Connection:
                 cmd, _, args = message.data.partition(":")
             args = args.split(":")
             if hasattr(self, f"_rcmd_{cmd}"):
-
                 try:
                     await getattr(self, f"_rcmd_{cmd}")(args)
-                    #await asyncio.sleep(0.5)
+                    
                 except:
                     if int(self.client.debug) == 1:
                         print("Error while handling command",
@@ -69,17 +63,11 @@ class Connection:
                         traceback.print_exc(file=sys.stderr)
             elif int(self.client.debug) == 1:
                 print(self, "Unhandled received command", cmd, args, file=sys.stderr)
-        if self._reconnect == True: 
-            asyncio.create_task(self._recv_task)
-            if int(self.client.debug) == 2:
-                print(self, "[NO INTERNET]", "Reconnecting")
-        else:
-            raise ConnectionAbortedError
-
-
+        
 class Socket: #resolver for socket client
     def __init__(self, client):
         self.client = client
+        self._first = True
         self._connected = False
         self._recv = None
         self._connection = None
@@ -94,15 +82,15 @@ class Socket: #resolver for socket client
             raise AlreadyConnectedError(getattr(self, "name", None), self)
         self._recv, self._connection = await asyncio.open_connection(
             f"{self.server}", self.port)
-        await self._login(user_name, password)
         self._recv_task = asyncio.create_task(self._do_recv())
         self._ping_task = asyncio.create_task(self._do_ping())
+        await self._login(user_name, password)
 
     @property
     def connected(self):
         return self._connected
 
-    async def _send_command(self, *args, terminator="\r\n\0"): #changed cuz i can
+    async def _send_command(self, *args, terminator="\r\n\0"): 
         message = ":".join(args) + terminator
         self._connection.write(message.encode())
         await self._connection.drain()
@@ -124,9 +112,9 @@ class Socket: #resolver for socket client
                     await self._do_process("")
                 else:
                     recv = data.split("\r\n\x00") #event
-                    for _data in recv:
-                        if _data != "":
-                            await self._do_process(_data)
+                    for r in recv:
+                        if r != "":
+                            await self._do_process(r)
             else:
                 self._recv.close()
                 print(f"Disconnected from {self}")

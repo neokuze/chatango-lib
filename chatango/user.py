@@ -7,6 +7,7 @@ from collections import deque
 import json
 import re, time, html
 from .utils import make_requests
+import datetime
 
 class ModeratorFlags(enum.IntFlag):
     DELETED = 1 << 0
@@ -114,6 +115,10 @@ class User: #TODO a new format for users
         return self._blend_name
 
     @property
+    def puid(self):
+        return self._puid
+
+    @property
     def ispremium(self):
         return self._ispremium
 
@@ -161,10 +166,22 @@ class User: #TODO a new format for users
         self._showname = val
         self._name = val.lower()
 
+    def del_profile(self):
+        if self._profile:
+            del self._profile
+            self._profile.update(dict(about={}, full={}))
+
     def addSessionId(self, room, sid):
         if room not in self._sids:
             self._sids[room] = set()
         self._sids[room].add(sid)
+
+
+    def getSessionIds(self, room = None):
+        if room:
+            return self._sids.get(room, set())
+        else:
+            return set.union(*self._sids.values())
 
     def removeSessionId(self, room, sid):
         if room in self._sids:
@@ -186,15 +203,23 @@ class User: #TODO a new format for users
             self._fontSize, self._fontColor = int(dstyles["fontSize"]), dstyles["textColor"]
             self._usebackground = int(dstyles["usebackground"])
             self._bgstyle = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', bg)])
-
+            position = dict(tl='top left', tr='top right', bl='bottom left', br='bottom right')
+            self._bgstyle["align"] = position[self._bgstyle["align"]]
+            
     async def get_main_profile(self):
         if self._profile['about']:
             return
         if not self.isanon:
             tasks = await make_requests(self._links[2:])
-            aboutme = tasks["mod1"].result()
-            about = aboutme.replace("<?xml version=\"1.0\" ?>", "")
-            self._profile["about"] = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', about)])
+            about = tasks["mod1"].result()
+            about = about.replace("<?xml version=\"1.0\" ?>", "")
+            body = about.split("<body>")[1].split("</body>")[0].replace("%20", " ").replace("\n", " ")
+            gender = about.split("<s>")[1].split("</s>")[0]
+            location = about.split("<l")[1].split(">",1)[1].split("</l>")[0]
+            last_change = about.split("<b>")[1].split("</b>")[0]
+            age = abs(datetime.datetime.now().year-int(last_change.split("-")[0]))
+            d = about.split("<d>")[1].split("</d>")[0]
+            self._profile["about"] = dict(age=age, last_change=last_change ,gender=gender or '?',location=location, d=d, mini=body)
             try:
                 fullprof = tasks["mod2"].result()
                 if fullprof is not None and str(fullprof)[:5] == "<?xml":
@@ -214,7 +239,7 @@ class Styles:
         self._bgstyle = dict()
         self._profile = dict(about=dict(), full=dict())
 
-class Friend:
+class Friend(Styles):
     _FRIENDS = dict()
     def __init__(self, user, client = None): 
         self.user = User(user)
@@ -223,6 +248,7 @@ class Friend:
         self._status = None
         self.idle = None
         self.last_active = None
+        super().__init__()
 
     def  __repr__(self):
         if self.is_friend():

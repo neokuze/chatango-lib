@@ -8,7 +8,7 @@ import time, sys
 import typing
 import asyncio
 
-from .user import User, Friend
+from .user import User
 from .message import _process_pm, format_videos
 
 class PM(Socket):
@@ -27,9 +27,10 @@ class PM(Socket):
         self._user = None
         self._silent = 0
         self._maxlen = 1900
-        self._status = dict()
         self._friends = list()
         self._blocked = list()
+        self._premium = False
+        self._history = list()
 
     def __dir__(self):
         return [x for x in
@@ -48,6 +49,14 @@ class PM(Socket):
         return self._user
 
     @property
+    def premium(self):
+        return self._premium
+    
+    @property
+    def history(self):
+        return self._history
+
+    @property
     def blocked(self):
         """Lista de usuarios bloqueados en la sala"""
         return self._blocked
@@ -56,14 +65,6 @@ class PM(Socket):
     def friends(self):
         return [x.name for x in self._friends]
 
-    @property
-    def status(self):
-        return self._status
-
-    def _Friend(self, user):
-        friend = Friend(str(user))
-        friend._client = self 
-        return friend
 
     async def enable_background(self):
         await self._send_command("msgbg", "1")
@@ -93,6 +94,12 @@ class PM(Socket):
         for friend in self._friends:
             if friend == user.lower():
                 return friend
+
+    def _add_to_history(self, args):
+        if len(self.history) >= 10000:
+            self._history = self._history[1:]
+        self._history.append(args)
+
 
     async def add_friend(self, user_name):
         user = user_name
@@ -126,21 +133,28 @@ class PM(Socket):
         else:
             if len(message) > 0:
                 message = message #format_videos(self.user, message)
-                nc = f"<n{self.user._nameColor}/>"
-                finished = f"{nc}<m v=\"1\"><g xs0=\"0\">{message}</g></g></m>"
-                print("FINISHED",finished)
+                nc, fs, fc, ff = (
+                    f"<n{self.user._nameColor}/>",
+                    f"{self.user._fontSize}",
+                    f"{self.user._fontColor}",
+                    f"{self.user._fontFace}")
+                message = f"{nc}<m v=\"1\"><g xs0=\"0\"><g x{fs}s{fc}=\"{ff}\">{message}</g></g></m>"
                 if sys.getsizeof(message) < 2900:
-                    await self._send_command("msg", target.lower(), finished)
+                    await self._send_command("msg", target.lower(), message)
 
     async def _rcmd_seller_name(self, args):
-        self._user = self._Friend(args[0])
+        self._user = User(args[0])
         await self.client._call_event("connect", self)
 
     async def _rcmd_pong(self, args):
         await self.client._call_event("pong", self)
 
-    async def _rmcd_premium(self, args):
+    async def _rcmd_premium(self, args):
         if args and args[0] == '210':
+            self._premium = True
+        else:
+            self._premium = False
+        if self.premium:
             await self.enable_background()
 
     async def _rcmd_time(self, args):
@@ -152,43 +166,9 @@ class PM(Socket):
         if self.friends or self.blocked:
             self.friends.clear()
             self.blocked.clear()
+        await self._send_command("getpremium")
         await self._send_command("wl") 
         await self._send_command("getblock")        
-        await self._send_command("getpremium")
-        await self.enable_background()
-
-    async def _rcmd_wl(self, args):
-        if self.client.debug:
-            pass
-        for i in range(len(args) // 4):
-            name, last_on, is_on, idle = args[i * 4: i * 4 + 4]
-            user = self._Friend(name)
-            user._status = is_on
-            await user._check_status(last_on, idle)
-            self._friends.append(user)
-
-    async def _rcmd_wlapp(self, args): # TODO
-        """Alguien ha iniciado sesión en la app"""
-        if args[0] in [x.name for x in self.friends]:
-            user = Friend(args[0])
-            last_on = float(args[1])
-            user._status = "app"
-            await self.client._call_event("pm_friend_app", user)
-
-    async def _rcmd_wloffline(self, args):  # TODO
-        if args[0] in [x.name for x in self.friends]:
-            user = Friend(args[0])
-            last_on = float(args[1])
-            user._status = "offline"
-            await self.client._call_event("pm_friend_offline", user)
-
-    async def _rcmd_wlonline(self, args):  # TODO
-        if args[0] in [x.name for x in self.friends]:
-            user = Friend(args[0])
-            last_on = float(args[1])
-            user._status = "online"
-            #await user._check_status(last_on, idle)
-            await self.client._call_event("pm_friend_online", user)
 
     async def _rcmd_toofast(self, args):
         self._silent = time.time() + 12 # seconds to wait
@@ -201,10 +181,23 @@ class PM(Socket):
     async def _rcmd_msg(self, args):
         msg = await _process_pm(self, args)
         print('PM','msg', args)
+        self._add_to_history(msg)
         await self.client._call_event("message", msg)
 
     async def _rcmd_msgoff(self, args):
         msg = await _process_pm(self, args)
         msg._offline = True
-        await self.client._call_event("message", msg)
+        self._add_to_history(msg)
 
+    async def _rcmd_idupdate(self, args):
+        pass
+    async def _rcmd_wl(self, args):
+        pass
+    async def _rcmd_wlapp(self, args):
+        pass
+    async def _rcmd_block_list(self, args):
+        pass
+
+"""
+RE-MAKE
+"""
