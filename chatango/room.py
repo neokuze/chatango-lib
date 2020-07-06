@@ -442,6 +442,7 @@ class Room(Connection):
         self._connected = False
         for x in self.userlist:
             x.removeSessionId(self, 0)
+        await self.client._call_event("disconnect", self)
 
     async def _connect(self, u=None, p=None):
         self._connection = await self.client.aiohttp_session.ws_connect(
