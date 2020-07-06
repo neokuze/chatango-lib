@@ -9,7 +9,7 @@ Based on "megach.py", [linkkg](https://github.com/linkkg/) + "CherryBlossom", [S
 The lib is not finished. i will make changes and make optimizations when required
 also i want to make some special lib with original content.
 so when i can, i will remove the "copied content" and make it myself.
-
+Any question can be [here](https://palaciodehielo.chatango.com/) *en/es*, whatever.
 #### Required
 1-Python 3.6+
 
