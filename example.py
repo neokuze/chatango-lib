@@ -35,8 +35,12 @@ class MyBot(chatango.Client):
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-
     bot = MyBot()
     bot.default_user("examplebot", pm=False) #True if passwd was input.
-    loop.run_until_complete(bot.start())
-    loop.run_forever()
+    ListBots = [bot.start()]
+    task = asyncio.gather(*ListBots, return_exceptions=True)
+    try:
+        loop.run_until_complete(task)
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print("Killed bot.") 
