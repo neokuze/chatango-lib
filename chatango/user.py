@@ -60,6 +60,7 @@ class User: #TODO a new format for users
         self._ispremium = None
         self._puid = str()
         self._client = None
+        self._last_time = None
         for attr, val in kwargs.items():
             setattr(self, '_' + attr, val)
         return self
@@ -85,6 +86,10 @@ class User: #TODO a new format for users
         if not self.isanon:
             return f"{self._fp}{self.get_user_dir}full.jpg"
         return False
+
+    @property
+    def last_time(self):
+        return self._last_time
 
     @property
     def msgbg(self):
@@ -216,9 +221,15 @@ class User: #TODO a new format for users
             body = about.split("<body>")[1].split("</body>")[0].replace("%20", " ").replace("\n", " ")
             gender = about.split("<s>")[1].split("</s>")[0]
             location = about.split("<l")[1].split(">",1)[1].split("</l>")[0]
-            last_change = about.split("<b>")[1].split("</b>")[0]
-            age = abs(datetime.datetime.now().year-int(last_change.split("-")[0]))
-            d = about.split("<d>")[1].split("</d>")[0]
+            last_change = ""
+            age = ""
+            d = ""
+            if len(about.split("<b>")) >1:
+                last_change = about.split("<b>")[1].split("</b>")[0]
+            if last_change != "":
+                age = abs(datetime.datetime.now().year-int(last_change.split("-")[0]))
+            if len(about.split("<d>")) >1:
+                d = about.split("<d>")[1].split("</d>")[0]
             self._profile["about"] = dict(age=age, last_change=last_change ,gender=gender or '?',location=location, d=d, mini=body)
             try:
                 fullprof = tasks["mod2"].result()
@@ -239,17 +250,18 @@ class Styles:
         self._bgstyle = dict()
         self._profile = dict(about=dict(), full=dict())
 
-class Friend(Styles):
+class Friend:
     _FRIENDS = dict()
+    
     def __init__(self, user, client = None): 
-        self.user = User(user)
-        self.name = self.user.name
+        self.user = user
+        self.name = user.name
         self._client = client
-        self._status = None
-        self.idle = None
-        self.last_active = None
-        super().__init__()
 
+        self._status = None
+        self._idle = None
+        self._last_active = None
+        
     def  __repr__(self):
         if self.is_friend():
             return f"<Friend {self.name}>"
@@ -258,6 +270,13 @@ class Friend(Styles):
     def __str__(self):
         return self.name
 
+    def get(name):
+        return Friend._FRIENDS.get(name) or Friend(name)
+
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
     @property
     def showname(self):
         return self.user.showname
@@ -269,6 +288,14 @@ class Friend(Styles):
     @property
     def status(self):
         return self._status
+
+    @property
+    def last_active(self):
+        return self._last_active
+
+    @property
+    def idle(self):
+        return self._idle
 
     def is_friend(self):
         if self.client and not self.user.isanon:
@@ -291,33 +318,30 @@ class Friend(Styles):
         if self.is_friend() == True:
             return await self.client.unfriend(self.name)
 
+    @property
     def is_online(self):
         return self.status == "online"
 
+    @property
     def is_offline(self):
         return self.status in ["offline", "app"]
     
+    @property
     def is_on_app(self):
         return self.status == "app"
     
-    async def send_message(self, message):
+    async def reply(self, message):
         if self.client:
             await self.client.send_message(self.name, message)
 
-    async def _check_status(self, _time=None, idle_time=None): # TODO
-        """
-        Check status:
-        @parasm _time: time
-        @parasm idle_time: time of user
-        ##
-        """
-        if _time == None and idle_time == None or self.user.isanon:
-            self.idle = None
+    def _check_status(self, _time=None, _idle=None, idle_time=None): # TODO
+        if _time == None and idle_time == None:
             self.last_active = None
             return 
-        if self.status == "on" and int(idle_time) >= 1:
-            self.idle = True
-            self.last_active = time.time() - (int(idle_time) * 60)
+        if _idle != None:
+            self._idle = _idle
+        if self.status == "online" and int(idle_time) >= 1:
+            self._last_active = time.time() - (int(idle_time) * 60)
+            self._idle = True
         else:
-            self.idle = False
-            self.last_active = float(_time)
+            self._last_active = float(_time)

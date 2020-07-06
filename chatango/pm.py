@@ -8,7 +8,7 @@ import time, sys
 import typing
 import asyncio
 
-from .user import User
+from .user import User, Friend
 from .message import _process_pm, format_videos
 
 class PM(Socket):
@@ -27,7 +27,7 @@ class PM(Socket):
         self._user = None
         self._silent = 0
         self._maxlen = 1900
-        self._friends = list()
+        self._friends = dict()
         self._blocked = list()
         self._premium = False
         self._history = list()
@@ -63,7 +63,7 @@ class PM(Socket):
 
     @property
     def friends(self):
-        return [x.name for x in self._friends]
+        return list(self._friends.keys())
 
 
     async def enable_background(self):
@@ -91,9 +91,11 @@ class PM(Socket):
             return True
 
     def get_friend(self, user):
-        for friend in self._friends:
-            if friend == user.lower():
-                return friend
+        if isinstance(user, User):
+            user = user.name
+        if user.lower() in self.friends:
+            return self._friends[user]
+        return None
 
     def _add_to_history(self, args):
         if len(self.history) >= 10000:
@@ -180,7 +182,8 @@ class PM(Socket):
     
     async def _rcmd_msg(self, args):
         msg = await _process_pm(self, args)
-        print('PM','msg', args)
+        if self.client.debug > 2:
+            print("pmmsg:",args)
         self._add_to_history(msg)
         await self.client._call_event("message", msg)
 
@@ -189,14 +192,72 @@ class PM(Socket):
         msg._offline = True
         self._add_to_history(msg)
 
-    async def _rcmd_idupdate(self, args):
-        pass
+    async def _rcmd_wlapp(self, args): pass   
+
+    async def _rcmd_wloffline(self, args): pass
+
+    async def _rcmd_wlonline(self, args): pass
+
     async def _rcmd_wl(self, args):
-        pass
-    async def _rcmd_wlapp(self, args):
-        pass
+        """Lista de contactos recibida al conectarse"""
+        # Restart contact list
+        self._friends.clear()
+        # Iterate over each contact
+        for i in range(len(args) // 4):
+            name, last_on, is_on, idle = args[i * 4: i * 4 + 4]
+            user = User(name)
+            friend = Friend(user, self)
+            if last_on == "None": last_on = 0
+            if is_on in ["off", "offline"]: friend._status = "offline"
+            elif is_on in ["on", "online"]: friend._status = "online"
+            elif is_on in ["app"]: friend._status = "app"
+            friend._check_status(float(last_on), None, int(idle))
+            self._friends[str(user.name)] = friend
+            await self._send_command("track", user.name)
+
+    async def _rcmd_track(self, args):
+        friend = self._friends[args[0]] if args[0] in self.friends else None
+        friend._idle = False
+        if args[2] == "online":
+             friend._last_active = time.time() - (int(args[1]) * 60)
+        elif args[2] == "offline":
+             friend._last_active = float(args[1])
+        if args[1] in ["0"] and args[2] in ["app"]:
+            friend._status = "app"
+        else: friend._status = args[2]
+
+    async def _rcmd_idleupdate(self, args):
+        friend = self._friends[args[0]] if args[0] in self.friends else None
+        friend._last_active = time.time()
+        friend._idle = True if args[1] == '0' else False
+
+    async def _rcmd_status(self, args):
+        friend = self._friends[args[0]] if args[0] in self.friends else None
+        status = True if args[2] == "online" else False
+        friend._check_status(float(args[1]), status, 0)       
+        await self.client._call_event(f"pm_contact_{args[2]}", friend)
+ 
     async def _rcmd_block_list(self, args):
-        pass
+        if self.client.debug > 1:
+            print("block_list_pm:", args)
+
+    async def _rcmd_wladd(self, args):
+        if args[1] == "invalid":
+            return
+        friend = self._friends[args[0]] if args[0] in self.friends else None
+        if not friend:
+            friend = Friend(User(args[0]), self)
+            self._friends[args[0]] = friend
+            await self.client._call_event("pm_contact_addfriend", friend)
+            await self.client._send_command("wl")
+            await self.client._send_command("track", args[0].lower())
+
+    async def _rcmd_wldelete(self, args):
+        if args[1] == "deleted":
+            friend = args[0]
+            if friend in self._friends:
+                del self._friends[friend]
+                await self.client._call_event("pm_contact_unfriend", args[0])
 
 """
 RE-MAKE
