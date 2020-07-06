@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 import chatango
 import asyncio
-import typing
-import random
-import time
 
 
 class MyBot(chatango.Client):
@@ -14,6 +11,9 @@ class MyBot(chatango.Client):
 
     async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
         print("Connected to", room)
+       
+    async def on_disconnect(self, room):
+        print(f"Disconnected from {room}")
 
     async def on_room_init(self, room):
         if room.user.isanon:
