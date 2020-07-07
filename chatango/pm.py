@@ -249,8 +249,8 @@ class PM(Socket):
             friend = Friend(User(args[0]), self)
             self._friends[args[0]] = friend
             await self.client._call_event("pm_contact_addfriend", friend)
-            await self.client._send_command("wl")
-            await self.client._send_command("track", args[0].lower())
+            await self._send_command("wl")
+            await self._send_command("track", args[0].lower())
 
     async def _rcmd_wldelete(self, args):
         if args[1] == "deleted":
