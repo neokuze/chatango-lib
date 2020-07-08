@@ -91,6 +91,11 @@ class Socket: #resolver for socket client
         return self._connected
 
     async def _send_command(self, *args, terminator="\r\n\0"): 
+        if self._first_command:
+            terminator = "\x00"
+            self._first_command = False
+        else:
+            terminator = "\r\n\0"
         message = ":".join(args) + terminator
         self._connection.write(message.encode())
         await self._connection.drain()
