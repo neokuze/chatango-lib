@@ -9,7 +9,7 @@ import typing
 import asyncio
 
 from .user import User, Friend
-from .message import _process_pm, format_videos
+from .message import _process_pm, format_videos, message_cut
 
 class PM(Socket):
     """
@@ -19,6 +19,7 @@ class PM(Socket):
         super().__init__(client)
         self.server = "c1.chatango.com"
         self.port = 443
+        self.__token = None
         self._first_command = True
         self._correctiontime = 0
 
@@ -26,7 +27,7 @@ class PM(Socket):
         self._uid = gen_uid()
         self._user = None
         self._silent = 0
-        self._maxlen = 1900
+        self._maxlen = 11600
         self._friends = dict()
         self._blocked = list()
         self._premium = False
@@ -43,6 +44,10 @@ class PM(Socket):
     @property
     def name(self):
         return repr(self)
+        
+    @property
+    def is_pm(self):
+        return True
 
     @property
     def user(self):
@@ -103,7 +108,7 @@ class PM(Socket):
         self._history.append(args)
 
 
-    async def add_friend(self, user_name):
+    async def addfriend(self, user_name):
         user = user_name
         friend = self.get_friend(user)
         if not friend:
@@ -116,16 +121,9 @@ class PM(Socket):
             await self._send_command("wldelete", friend.name)
 
     async def _login(self, user_name: str, password: str):
-        if self._first_command:
-            terminator = "\x00"
-            self._first_command = False
-        else:
-            terminator = "\r\n\0"
-        token = await get_token(user_name, password)
-        if not token:
-            await self.client._call_event("login_fail", str(user_name))
-        else:
-            await self._send_command("tlogin", str(token), "2", self._uid, terminator=terminator)
+        self.__token = await get_token(user_name, password)
+        if self.__token:
+            await self._send_command("tlogin", self.__token, "2", self._uid)
     
     async def send_message(self, target, message: str, use_html: bool = False):
         if isinstance(target, User):
@@ -136,13 +134,11 @@ class PM(Socket):
             if len(message) > 0:
                 message = message #format_videos(self.user, message)
                 nc, fs, fc, ff = (
-                    f"<n{self.user._nameColor}/>",
-                    f"{self.user._fontSize}",
-                    f"{self.user._fontColor}",
-                    f"{self.user._fontFace}")
-                message = f"{nc}<m v=\"1\"><g xs0=\"0\"><g x{fs}s{fc}=\"{ff}\">{message}</g></g></m>"
-                if sys.getsizeof(message) < 2900:
-                    await self._send_command("msg", target.lower(), message)
+                    f"<n{self.user.styles.name_color}/>", f"{self.user.styles.font_size}",
+                    f"{self.user.styles.font_color}", f"{self.user.styles.font_face}")
+                for msg in message_cut(message, self._maxlen):
+                    msg = f"{nc}<m v=\"1\"><g xs0=\"0\"><g x{fs}s{fc}=\"{ff}\">{msg}</g></g></m>"
+                    await self._send_command("msg", target.lower(), msg)
 
     async def _rcmd_seller_name(self, args):
         self._user = User(args[0])
@@ -162,6 +158,9 @@ class PM(Socket):
     async def _rcmd_time(self, args):
         self._connectiontime = float(args[0])
         self._correctiontime = float(self._connectiontime) - time.time()
+
+    async def _rcmd_DENIED(self, args):
+        await self.client._call_event("pm_denied", self, args)
 
     async def _rcmd_OK(self, args):
         self._connected = True
@@ -233,6 +232,7 @@ class PM(Socket):
 
     async def _rcmd_status(self, args):
         friend = self._friends[args[0]] if args[0] in self.friends else None
+        if friend == None: return
         status = True if args[2] == "online" else False
         friend._check_status(float(args[1]), status, 0)       
         await self.client._call_event(f"pm_contact_{args[2]}", friend)
