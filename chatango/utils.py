@@ -2,7 +2,7 @@
 Utility module
 """
 import asyncio
-import random
+import random, mimetypes
 import typing
 import html
 import re, string, time
@@ -68,26 +68,50 @@ class Task:
         return f"<Task {interval}: {self.timeout} >"
 
 
-
 async def get_token(user_name, passwd):
+    chatango, token = ["http://chatango.com/login", "auth.chatango.com"], None
     payload = {
-            "user_id": str(user_name).lower(),
-            "password": str(passwd),
-            "storecookie": "on",
-            "checkerrors": "yes"
-        }
-    s = "auth.chatango.com"
+        "user_id": str(user_name).lower(),
+        "password": str(passwd),
+        "storecookie": "on",
+        "checkerrors": "yes"}
     async with aiohttp.ClientSession() as session:
-        async with session.post('http://chatango.com/login',
-                        data=payload) as resp:
-            _token = str(resp.cookies.get(s))
-            if s+'=' in _token:
-                token = _token.split(s+'=')[1].split(";")[0]
-            else:
-                token = False
-            return token
-    return False
+        async with session.post(chatango[0], data=payload) as resp:
+            if chatango[1] in resp.cookies:
+                token = str(resp.cookies[chatango[1]]).split("=")[1].split(";")[0]
+    return token
 
+def multipart(data, files, boundary=None):
+    lineas = []
+    def escape_quote(s):
+        return s.replace('"', '\\"')
+    if boundary == None:
+        boundary = ''.join(
+            random.choice(string.digits + string.ascii_letters) for x in range(30))
+    for nombre, valor in data.items():
+        lineas.extend(('--%s' % boundary,
+                        'Content-Disposition: form-data; name="%s"' % nombre,
+                        '', str(valor)))
+    for nombre, valor in files.items():
+        filename = valor['filename']
+        if 'mimetype' in valor:
+            mimetype = valor['mimetype']
+        else:
+            mimetype = mimetypes.guess_type(filename)[
+                            0] or 'application/octet-stream'
+        lineas.extend(('--%s' % boundary,
+                        'Content-Disposition: form-data; name="%s"; '
+                        'filename="%s"' % (
+                            escape_quote(nombre), escape_quote(filename)),
+                        'Content-Type: %s' % mimetype, '', valor['content']))
+    lineas.extend(('--%s--' % boundary, '',))
+    body = '\r\n'.join(lineas)
+    headers = {
+        'Content-Type':   'multipart/form-data; boundary=%s' % boundary,
+        'Content-Length': str(len(body))
+        }
+    return body, headers
+    
 async def sessionget(session, url):
     async with session.get(url) as resp:
         assert resp.status == 200
@@ -130,6 +154,13 @@ def _clean_message(msg: str, pm: bool = False) -> [str, str, str]:  # TODO
     msg = html.unescape(msg).replace('\r', '\n')
     return msg, n or '', f or ''
 
+def _account_selector(room):
+    if room.client._using_accounts != None:
+        accs = [x for x in room.client._using_accounts if x[0].lower() == room.user.name]
+        data = [accs[0][0], accs[0][1]]
+    else:
+        data = [room.client._default_user_name, room.client._default_password]
+    return data
 
 def _strip_html(msg: str) -> str:
     li = msg.split("<")
@@ -174,3 +205,69 @@ def _parseFont(f: str, pm=False) -> (str, str, str):
     if not match:
         return None, None, None
     return match.groups()
+
+class Styles:
+    def __init__(self):
+        self._name_color = str("000000")
+        self._font_color = str("000000")
+        self._font_size = 11
+        self._font_face = 1
+        self._use_background = 0
+
+        self._blend_name = None
+        self._bgstyle = dict()
+        self._profile = dict(
+            about = dict(age='', last_change='', 
+                    gender='?',location='', d='', mini=''),
+            full=dict())
+
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
+
+    def __repr__(self):
+        return f"nc:{self.name_color} |bg:{self.use_background} |{self.default}"
+
+    @property
+    def aboutme(self):
+        return self._profile["about"]
+
+    @property
+    def fullhtml(self):
+        return self._profile["full"]
+
+    @property
+    def fullmini(self):
+        return self._profile["about"]["mini"]
+
+    @property
+    def bgstyle(self):
+        return self._bgstyle
+
+    @property
+    def use_background(self):
+     return self._use_background
+
+    @property
+    def default(self):
+        size = str(self.font_size)
+        face = str(self.font_face)
+        return f"<f x{size}{self.font_color}='{face}'>"
+
+    @property
+    def name_color(self):
+        return self._name_color
+
+    @property
+    def font_color(self):
+        return self._font_color
+
+    @property
+    def font_size(self):
+        return self._font_size
+
+    @property
+    def font_face(self):
+        return self._font_face
+        
