@@ -3,11 +3,11 @@ Module for user related stuff
 """
 import enum
 import aiohttp, asyncio
-from collections import deque
-import json
+import json, urllib
 import re, time, html
-from .utils import make_requests
 import datetime
+from collections import deque
+from .utils import Styles, make_requests
 
 class ModeratorFlags(enum.IntFlag):
     DELETED = 1 << 0
@@ -48,7 +48,7 @@ class User: #TODO a new format for users
                 setattr(cls._users[key], '_' + attr, val)
             return cls._users[key]
         self = super().__new__(cls)
-        Styles.__init__(self)
+        self._styles = Styles()
         cls._users[key] = self
         self._name = name.lower()
         self._ip = None
@@ -77,6 +77,22 @@ class User: #TODO a new format for users
         return "<User: %s>" % self.showname
 
     @property
+    def age(self):
+        return self.styles._profile['about']['age']
+
+    @property
+    def last_change(self):
+        return self.styles._profile['about']['last_change']
+
+    @property
+    def gender(self):
+        return self.styles._profile['about']['last_change']
+
+    @property
+    def location(self):
+        return self.styles._profile['about']['location']
+
+    @property
     def get_user_dir(self):
         if not self.isanon:
             return '/%s/%s/' % ('/'.join((self.name * 2)[:2]), self.name)
@@ -96,6 +112,10 @@ class User: #TODO a new format for users
         if not self.isanon:
             return f"{self._fp}{self.get_user_dir}msgbg.jpg"
         return False
+
+    @property
+    def styles(self):
+        return self._styles
 
     @property
     def thumb(self):
@@ -131,37 +151,12 @@ class User: #TODO a new format for users
     def showname(self):
         return self._showname
 
-    @property
-    def default(self):
-        size = str(self._fontSize)
-        face = str(self._fontFace)
-        return f"<f x{size}{self._fontColor}='{face}'>"
-
-    @property
-    def profile(self):
-        return self._profile
-
-    @property
-    def bgstyle(self):
-        return self._bgstyle
-
-    @property
-    def bg_on(self):
-        return int(self._usebackground)
-
     @property    
     def _links(self):
         return [["msgstyles", f"{self._ust}{self.get_user_dir}msgstyles.json"],
                 ["msgbg", f"{self._ust}{self.get_user_dir}msgbg.xml"],
                 ["mod1", f"{self._ust}{self.get_user_dir}mod1.xml"],
                 ["mod2", f"{self._ust}{self.get_user_dir}mod2.xml"]]
-    @property
-    def aboutme(self):
-        return self.profile["about"]
-
-    @property
-    def main_profile(self):
-        return self.profile["full"]
 
     @property
     def isanon(self):
@@ -172,9 +167,9 @@ class User: #TODO a new format for users
         self._name = val.lower()
 
     def del_profile(self):
-        if self._profile:
-            del self._profile
-            self._profile.update(dict(about={}, full={}))
+        if self.styles.profile:
+            del self._styles._profile
+            self._styles._profile.update(dict(about={}, full={}))
 
     def addSessionId(self, room, sid):
         if room not in self._sids:
@@ -202,53 +197,41 @@ class User: #TODO a new format for users
             tasks = await make_requests(self._links[:2])
             msgs = tasks["msgstyles"].result()
             msgbg = tasks["msgbg"].result()
-            dstyles = json.loads(msgs)
+            styles = json.loads(msgs)
             bg = msgbg.replace("<?xml version=\"1.0\" ?>", "")
-            self._nameColor, self._fontFace = dstyles["nameColor"], int(dstyles["fontFamily"])
-            self._fontSize, self._fontColor = int(dstyles["fontSize"]), dstyles["textColor"]
-            self._usebackground = int(dstyles["usebackground"])
-            self._bgstyle = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', bg)])
+            self._styles._name_color, self._styles._font_face = styles["nameColor"], int(styles["fontFamily"])
+            self._styles._font_size, self._styles._font_color = int(styles["fontSize"]), styles["textColor"]
+            self._styles._use_background = int(styles["usebackground"])
+            self._styles._bgstyle = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', bg)])
             position = dict(tl='top left', tr='top right', bl='bottom left', br='bottom right')
-            self._bgstyle["align"] = position[self._bgstyle["align"]]
+            self._styles._bgstyle["align"] = position[self.styles.bgstyle["align"]]
             
     async def get_main_profile(self):
-        if self._profile['about']:
-            return
         if not self.isanon:
             tasks = await make_requests(self._links[2:])
             about = tasks["mod1"].result()
             about = about.replace("<?xml version=\"1.0\" ?>", "")
-            body = about.split("<body>")[1].split("</body>")[0].replace("%20", " ").replace("\n", " ")
-            gender = about.split("<s>")[1].split("</s>")[0]
-            location = about.split("<l")[1].split(">",1)[1].split("</l>")[0]
-            last_change = ""
-            age = ""
-            d = ""
+            gender,age,location,last_change,d,body = [""]*6
+            if len(about.split("<body>")) >1:
+                body = about.split("<body>")[1].split("</body>")[0]
+                body = urllib.parse.unquote(body)
+            if len(about.split("<s>")) >1:
+                gender = about.split("<s>")[1].split("</s>")[0]
+            if len(about.split("<l")) >1:
+                location = about.split("<l")[1].split(">",1)[1].split("</l>")[0]
             if len(about.split("<b>")) >1:
                 last_change = about.split("<b>")[1].split("</b>")[0]
             if last_change != "":
                 age = abs(datetime.datetime.now().year-int(last_change.split("-")[0]))
             if len(about.split("<d>")) >1:
                 d = about.split("<d>")[1].split("</d>")[0]
-            self._profile["about"] = dict(age=age, last_change=last_change ,gender=gender or '?',location=location, d=d, mini=body)
+            self._styles._profile["about"] = dict(age=age, last_change=last_change ,gender=gender or '?',location=location, d=d, mini=body)
             try:
                 fullprof = tasks["mod2"].result()
                 if fullprof is not None and str(fullprof)[:5] == "<?xml":
-                    self._profile["full"] = html.unescape(fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0]).replace("%20", " ").replace("\n", " ")
+                    self._styles._profile["full"] = urllib.parse.unquote(fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0])
             except:
                 pass
-
-class Styles:
-    def __init__(self):
-        self._nameColor = str("000000")
-        self._fontColor = str("000000")
-        self._fontSize = 11
-        self._fontFace = 1
-        self._usebackground = 0
-
-        self._blend_name = None
-        self._bgstyle = dict()
-        self._profile = dict(about=dict(), full=dict())
 
 class Friend:
     _FRIENDS = dict()
@@ -304,12 +287,12 @@ class Friend:
             return False
         return None 
 
-    async def friend_request(self):
+    async def send_friend_request(self):
         """
         Send a friend request
         """
         if self.is_friend() == False:
-            return await self.client.add_friend(self.name)
+            return await self.client.addfriend(self.name)
 
     async def unfriend(self):
         """
