@@ -19,7 +19,7 @@ class Client:
         self.pm = PM(self)
 
         self.silent = int(2)
-        self.debug = 1
+        self.debug = 2=1
 
         self._running = False
         self._rooms = {}
@@ -144,25 +144,6 @@ class Client:
         else:
             event_name = name
         setattr(self, event_name, func)
-
-
-    def set_font_color(self, hexfont):
-        for x in list(self.rooms):
-            x.user._fontColor = str(hexfont)
-
-    def set_font_face(self, facenum):
-        """ @param facenum: El número de la fuente en un string """
-        fuente = str(Fonts.get(str(facenum).lower(), facenum))
-
-        for x in list(self.rooms):
-            x.user._fontFace = fuente
-
-    def set_font_size(self, sizenum):
-        """Cambiar el tamaño de la fuente TODO para la sala"""
-        size = str(sizenum)
-
-        for x in list(self.rooms):
-            x.user._fontSize = size
             
     def set_interval(self, tiempo, funcion, *args, **kwargs):
         """
@@ -189,4 +170,4 @@ class Client:
         while True: 
             _ = [await self.leave(room) for room in self._rooms 
               if self._rooms[room].connection == None or self._rooms[room].connection.closed]
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
