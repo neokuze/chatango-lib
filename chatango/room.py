@@ -2,9 +2,9 @@
 Module for room related stuff
 """
 
-from .utils import gen_uid, get_anon_name, _clean_message, _parseFont, _id_gen
+from .utils import gen_uid, get_anon_name, _clean_message, _parseFont, _id_gen, multipart, _account_selector
 from .connection import Connection
-from .message import Message, MessageFlags, _process, mentions
+from .message import Message, MessageFlags, _process, mentions, message_cut
 from .user import User, ModeratorFlags, AdminFlags
 from collections import deque, namedtuple
 from .utils import get_token, gen_uid
@@ -149,8 +149,8 @@ class Room(Connection):
         self._unbanqueue = deque(maxlen=500)
         self._usercount = 0
         self._del_dict = dict()
-        self._maxlen = 2900
-        self._history = deque(maxlen=self._maxlen)
+        self._maxlen = 2700
+        self._history = deque(maxlen=self._maxlen+300)
         self._bgmode = 0
         self._reconnect = True
         self._nomore = False
@@ -164,6 +164,10 @@ class Room(Connection):
         if self.user == None:
             return f"<Room {self.name}>"
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
+
+    @property
+    def is_pm(self):
+        return False
 
     @property
     def badge(self):
@@ -243,15 +247,15 @@ class Room(Connection):
         return sorted([x[1] for x in list(self._userdict.values())],
                       key=lambda z: z.name.lower())
 
-    def set_font(self, attr, font):
-        if attr == "namecolor":
-            self._user._nameColor = str(font)
-        elif attr == "fontcolor":
-            self._user._fontColor = str(font)
-        elif attr == "fontsize":
-            self._user._fontSize = int(font)
-        elif attr == "fontface":
-            self._user._fontFace = int(font)
+    def set_font(self, name_color=None, font_color=None, font_size=None, font_face=None):
+        if name_color:
+            self._user._styles._name_color = str(name_color)
+        if font_color:
+            self._user._styles._font_color = str(font_color)
+        if font_size:
+            self._user._styles._font_size = int(font_size)
+        if font_face:
+            self._user._styles._font_face = int(font_face)
 
     async def enable_bg(self):
         await self.set_bg_mode(1)
@@ -297,6 +301,59 @@ class Room(Connection):
         if user.lower() in [x.name for x in self._banlist]:
             return self._banlist[User(user)]
         return None
+
+    async def upload_image(self, path, return_url=False):
+        if self.user.isanon: return None
+        with open(path, mode='rb') as f:
+            files = {'filedata': {'filename': path, 'content': f.read().decode('latin-1')}}
+        account, success= _account_selector(self), None
+        data, headers = multipart(dict(u=account[0],p=account[1]), files)
+        headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.post("http://chatango.com/uploadimg", data=data.encode("latin-1")) as resp:
+                response = await resp.text()
+                if "success" in response:
+                    success = response.split(":", 1)[1]
+        if success != None:
+            if return_url:
+                url = "http://ust.chatango.com/um/{}/{}/{}/img/t_{}.jpg"
+                return url.format(self.user.name[0], self.user.name[1], self.user.name, success)
+            else:
+                return f"img{success}"
+        return None
+    async def update_bg(self, bgc = '', ialp = '100', useimg = '0', bgalp = '100',
+                 align = 'tl', isvid = '0', tile = '0', bgpic = None):
+        """
+        @param bgpic: Imagen de bg. si se envía se ignora lo demás.
+        @param bgc: Color del bg Hexadecimal
+        @param ialp: Opacidad de la imagen
+        @param useimg: Usar imagen (0/1)
+        @param bgalp: Opacidad del color de bg
+        @param align: Alineacion de la imagen (tr,tl,br,bl)
+        @param isvid: Si el bg contiene video (0/1) # TODO 
+        @param tile: Si la imagen se repite para cubrir el area de texto(0/1)
+        @return: bool indicando exito o fracaso
+        """
+        data = {
+            "bgc":   bgc, "ialp": ialp, "useimg": useimg, "bgalp": bgalp,
+            "align": align, "isvid": isvid, "tile": tile, 'hasrec': '0'
+            }
+        headers = {}
+        _account = _account_selector(self)
+        account = dict(lo=_account[0],p=_account[1])
+        data.update(account)
+        if bgpic:
+            with open(bgpic, 'rb') as archivo:
+                files = {'Filedata': {'filename': bgpic,'content':  archivo.read().decode('latin-1')}}
+            data, headers = multipart(data, files)
+        headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.post("http://chatango.com/updatemsgb", data=data) as resp:
+                response = resp.status
+                print(response)
+                await self._send_command("miu")
+                return True
+        return False
 
     def get_last_message(self, user=None):
         """Obtener el último mensaje de un usuario en una sala"""
@@ -419,7 +476,6 @@ class Room(Connection):
         return False
 
     async def _reload(self):
-        await self._style_init(self._user)
         if self._usercount <= 1000:
             await self._send_command("g_participants:start")
         else:
@@ -430,6 +486,8 @@ class Room(Connection):
         await self._send_command("getratelimit")
         await self.request_banlist()
         await self.request_unbanlist()
+        if self.user.ispremium:
+            await self._style_init(self._user)
 
     async def set_bg_mode(self, mode):
         self._bgmode = mode
@@ -462,7 +520,6 @@ class Room(Connection):
 
     async def _rcmd_pwdok(self, args):
         self._user._isanon = False
-        print(self._user)
         await self._send_command("getpremium", "l")
         await self._style_init(self._user)
 
@@ -470,7 +527,7 @@ class Room(Connection):
         self._silent = True
         await self._send_command("blogout")
 
-    async def send_message(self, message, use_html=False, flags=None, delete_after=0):
+    async def send_message(self, message, use_html=False, flags=None):
         if not self.silent:
             message_flags = flags if flags else str(
                 self.message_flags+self.badge) or str(0+self.badge)
@@ -478,8 +535,9 @@ class Room(Connection):
             if not use_html:
                 msg = html.escape(msg, quote=False)
             msg = msg.replace('\n', '\r').replace('~', '&#126;')
-            message = f'<n{self.user._nameColor}/><f x{self.user._fontSize}{self.user._fontColor}="{self.user._fontFace}">{msg}</f>'
-            await self._send_command("bm", _id_gen(), message_flags, message)
+            for msg in message_cut(msg, self._maxlen):
+                message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
+                await self._send_command("bm", _id_gen(), message_flags, message)
 
     async def _rcmd_ok(self, args):  # TODO
         self._connected = True
@@ -514,10 +572,12 @@ class Room(Connection):
                 await user.get_styles()
             await user.get_main_profile()
         else:
-            self.set_font("namecolor", "000000")
-            self.set_font("fontcolor", "000000")
-            self.set_font("fontsize", 11)
-            self.set_font("fontface", 1)
+            self.set_font(
+                name_color = "000000",
+                font_color = "000000",
+                font_size  = 11,
+                font_face  =  1
+            )
 
     async def _rcmd_inited(self, args):
         await self._reload()
@@ -773,13 +833,6 @@ class Room(Connection):
     async def _rcmd_miu(self, args):
         await self.client._call_event('bg_reload', User(args[0]))
 
-    async def _rcmd_updateprofile(self, args):
-        """Cuando alguien actualiza su perfil en un chat"""
-        user = User.get(args[0])
-        user._profile = None
-        await user.info
-        await self.client._call_event('update_profile', user)
-
     async def _rcmd_delete(self, args):
         """Borrar un mensaje de mi vista actual"""
         msg = self._msgs.get(args[0])
@@ -876,8 +929,8 @@ class Room(Connection):
             self._silent = False
         name = get_anon_name(self._connectiontime.split(".")[0][-4:], self._puid
             )
-        self._user = User(name, nameColor=str(self._connectiontime).split('.')[
-                          0][-4:], isanon=True, ip=self._currentIP)
+        self._user = User(name, isanon=True, ip=self._currentIP) 
+        self._user._stylels._name_color = str(self._connectiontime).split('.')[0][-4:]
         # TODO fail aquiCLOSE
         await self.client._call_event('logout', self._user, '?')
 
