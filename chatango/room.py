@@ -321,40 +321,7 @@ class Room(Connection):
             else:
                 return f"img{success}"
         return None
-    async def update_bg(self, bgc = '', ialp = '100', useimg = '0', bgalp = '100',
-                 align = 'tl', isvid = '0', tile = '0', bgpic = None):
-        """
-        @param bgpic: Imagen de bg. si se envía se ignora lo demás.
-        @param bgc: Color del bg Hexadecimal
-        @param ialp: Opacidad de la imagen
-        @param useimg: Usar imagen (0/1)
-        @param bgalp: Opacidad del color de bg
-        @param align: Alineacion de la imagen (tr,tl,br,bl)
-        @param isvid: Si el bg contiene video (0/1) # TODO 
-        @param tile: Si la imagen se repite para cubrir el area de texto(0/1)
-        @return: bool indicando exito o fracaso
-        """
-        data = {
-            "bgc":   bgc, "ialp": ialp, "useimg": useimg, "bgalp": bgalp,
-            "align": align, "isvid": isvid, "tile": tile, 'hasrec': '0'
-            }
-        headers = {}
-        _account = _account_selector(self)
-        account = dict(lo=_account[0],p=_account[1])
-        data.update(account)
-        if bgpic:
-            with open(bgpic, 'rb') as archivo:
-                files = {'Filedata': {'filename': bgpic,'content':  archivo.read().decode('latin-1')}}
-            data, headers = multipart(data, files)
-        headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post("http://chatango.com/updatemsgb", data=data) as resp:
-                response = resp.status
-                print(response)
-                await self._send_command("miu")
-                return True
-        return False
-
+    
     def get_last_message(self, user=None):
         """Obtener el último mensaje de un usuario en una sala"""
         if not user:
