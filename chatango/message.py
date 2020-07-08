@@ -4,7 +4,7 @@ import string
 import time
 import enum
 
-from .utils import gen_uid, get_anon_name, _clean_message, _parseFont
+from .utils import gen_uid, get_anon_name, _clean_message, _parseFont, Styles
 from .user import User
 
 
@@ -34,11 +34,8 @@ class Message(object):  # base
     def __init__(self):
         self._user = None
         self._room = None
+        self._styles = None
         self._channel = None
-        self._nameColor = str("000000")
-        self._fontColor = str("000000")
-        self._fontSize = 12
-        self._fontFace = 0
         self._time = 0
         self._body = str()
         self._raw = str()
@@ -64,18 +61,6 @@ class Message(object):  # base
         return self._room
 
     @property
-    def nameColor(self):
-        return self._nameColor
-
-    @property
-    def fontColor(self):
-        return self._fontColor
-
-    @property
-    def fontSize(self):
-        return self._fontSize
-
-    @property
     def time(self):
         return self._time
 
@@ -87,6 +72,9 @@ class Message(object):  # base
     def raw(self):
         return self._raw
 
+    @property
+    def styles(self):
+        return self._styles
 
 class PMBase(Message):
     def __init__(self):
@@ -173,15 +161,21 @@ async def _process(room, args):
         isanon = True
     else:
         if n:
-            msg._nameColor = n
+            name_color = n
         else:
-            msg._nameColor = None
+            name_color = None
     if isanon:
-        msg._nameColor = str(msg._room._connectiontime).split('.')[0][-4:]
+        name = str(msg._room._connectiontime).split('.')[0][-4:]
     msg._user = User(name, ip=ip, isanon=isanon)
-    msg._fontSize, msg._fontColor, msg._fontFace = _parseFont(f.strip())
+    msg._user._styles._name_color = n if n else None
+    msg._styles = msg._user._styles
+    msg._styles._font_size, msg._styles._font_color, msg._styles._font_face = _parseFont(f.strip())
     msg._user.setName(name)
+    if msg._styles._font_size == None: msg._styles._font_size=11
     msg._flags = MessageFlags(int(flags))
+    if MessageFlags.BG_ON in msg.flags:
+        if MessageFlags.PREMIUM in msg.flags:
+            msg._styles._use_background = 1
     msg._mentions = mentions(msg._body, room)
     msg._channel = channel(msg._room, msg._user)
     ispremium = MessageFlags.PREMIUM in msg._flags
@@ -201,17 +195,18 @@ async def _process_pm(room, args):
     mtime = float(args[3]) - room._correctiontime
     rawmsg = ':'.join(args[5:])
     body, n, f = _clean_message(rawmsg, pm=True)
-    nameColor = n or None
-    fontSize, fontColor, fontFace = _parseFont(f)
+    name_color = n or None
+    font_size, font_color, font_face = _parseFont(f)
     msg = PMBase()
     msg._room = room
     msg._user = user
     msg._time = mtime
     msg._body = body
-    msg._nameColor = nameColor
-    msg._fontSize = fontSize
-    msg._fontColor = fontColor
-    msg._fontFace = fontFace
+    msg._styles = msg._user._styles
+    msg._styles._name_color = name_color
+    msg._styles._font_size = font_size
+    msg._styles._font_color = font_color
+    msg._styles._font_face = font_face
     msg._channel = channel(msg._room, msg._user)
     return msg
 
@@ -236,6 +231,11 @@ class channel:
         self.user = user
         self.room = room
 
+    def __dir__(self):
+        return [x for x in
+                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
+                x[0] != '_']
+
     async def send(self, message, use_html=False):
         messages = message_cut(message, self.room._maxlen)
         for message in messages:
@@ -248,7 +248,7 @@ class channel:
         self.is_pm = True
         await self.send(message)
 
-def format_videos( user, pmmessage): pass #TODO TESTING
+def format_videos(user, pmmessage): pass #TODO TESTING
 #     msg = pmmessage
 #     tag = 'i'
 #     r = []
