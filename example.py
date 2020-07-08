@@ -17,18 +17,20 @@ class MyBot(chatango.Client):
 
     async def on_room_init(self, room):
         if room.user.isanon:
-            room.setFont("namecolor", "000000")
-            room.setFont("fontcolor", "000000")
-            room.setFont("fontsize", 11)
-            room.setFont("fontface", 1)
+            room.setFont(
+                name_color = "000000",
+                font_color = "000000",
+                font_face  = 1,
+                font_size  = 11
+            )
         else:
-            await room.user.get_profile()
+            await room.user.get_main_profile()
             await room.enable_bg()
             
     async def on_message(self, message):
         print(time.strftime("%b/%d-%H:%M:%S", time.localtime(message.time)),
               message.room.name, message.user.showname, ascii(message.body)[1:-1])
-        if message.room == "<PM>" and message.msgoff == True: return
+        
         if message.body.startswith("!a"):
             await message.channel.send(f"Hello {message.user.showname}")
 
