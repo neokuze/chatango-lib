@@ -86,7 +86,7 @@ class User: #TODO a new format for users
 
     @property
     def gender(self):
-        return self.styles._profile['about']['last_change']
+        return self.styles._profile['about']['gender']
 
     @property
     def location(self):
