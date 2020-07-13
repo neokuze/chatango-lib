@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import chatango
 import asyncio
+import time
 import typing
 
 class MyBot(chatango.Client):
