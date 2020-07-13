@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import chatango
 import asyncio
-
+import typing
 
 class MyBot(chatango.Client):
     async def on_init(self):
