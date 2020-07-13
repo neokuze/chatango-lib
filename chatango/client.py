@@ -19,7 +19,7 @@ class Client:
         self.pm = PM(self)
 
         self.silent = int(2)
-        self.debug = 2=1
+        self.debug = 1
 
         self._running = False
         self._rooms = {}
