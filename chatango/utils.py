@@ -239,7 +239,7 @@ class Styles:
 
     @property
     def fullmini(self):
-        return self._profile["about"]["mini"]
+        return html.escape(self._profile["about"]["mini"])
 
     @property
     def bgstyle(self):
