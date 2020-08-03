@@ -143,11 +143,10 @@ async def _process(room, args):
     msg._id = msgid
     msg._unid = unid
     msg._ip = ip
-    msg._body = html.unescape(
-        re.sub("<(.*?)>", "", body.replace("<br/>", "\n"))
-    )
+    msg._raw = body
     body, n, f = _clean_message(body)
-    msg._raw = args
+    strip_body = " ".join(body.split(" ")[:-1]) + " " + body.split(" ")[-1].replace("\n", "")
+    msg._body = strip_body.strip()
     isanon = False
     if not name:
         if not tname:
