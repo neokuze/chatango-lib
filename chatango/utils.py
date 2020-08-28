@@ -194,7 +194,8 @@ def get_anon_name(tssid: str, puid: str) -> str:
         number1 = int(n[i:i + 1])
         number2 = int(tssid[i:i + 1])
         result.append(str(number1+number2)[-1:])
-    return "anon"+"".join(result)
+    name = "".join(result)
+    return 'anon' + name
 
 def _parseFont(f: str, pm=False) -> (str, str, str):
     if pm:

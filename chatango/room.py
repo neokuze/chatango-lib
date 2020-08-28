@@ -161,8 +161,6 @@ class Room(Connection):
         self._connected = None
 
     def __repr__(self):
-        if self.user == None:
-            return f"<Room {self.name}>"
         return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
 
     @property
@@ -887,10 +885,9 @@ class Room(Connection):
 
     async def _rcmd_logoutok(self, args, Force=False):
         """Me he desconectado, ahora usaré mi nombre de anon"""
-        name = get_anon_name(self._connectiontime.split(".")[0][-4:], self._puid
+        name = get_anon_name(str(self._correctiontime).split(".")[0][-4:], self._puid
             )
-        self._user = User(name, isanon=True, ip=self._currentIP) 
-        self._user._stylels._name_color = str(self._connectiontime).split('.')[0][-4:]
+        self._user = User(name, isanon=True, ip=self._currentIP)
         # TODO fail aquiCLOSE
         await self.client._call_event('logout', self._user, '?')
 

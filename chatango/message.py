@@ -147,29 +147,27 @@ async def _process(room, args):
     body, n, f = _clean_message(body)
     strip_body = " ".join(body.split(" ")[:-1]) + " " + body.split(" ")[-1].replace("\n", "")
     msg._body = strip_body.strip()
+    name_color = None
     isanon = False
-    if not name:
+    if name == "":
+        isanon = True
         if not tname:
-            ts = re.search("<n(.*?)/>", ":".join(args[9:]))
+            ts = re.search("<n(.*?)/>", ":".join(msg._raw[0]))
             if not isinstance(ts, type(None)):
                 name = get_anon_name(ts.group(1), puid)
             else:
                 name = get_anon_name("", puid)
         else:
             name = tname
-        isanon = True
     else:
         if n:
             name_color = n
         else:
             name_color = None
-    if isanon:
-        name = str(msg._room._connectiontime).split('.')[0][-4:]
     msg._user = User(name, ip=ip, isanon=isanon)
-    msg._user._styles._name_color = n if n else None
+    msg._user._styles._name_color = name_color
     msg._styles = msg._user._styles
     msg._styles._font_size, msg._styles._font_color, msg._styles._font_face = _parseFont(f.strip())
-    msg._user.setName(name)
     if msg._styles._font_size == None: msg._styles._font_size=11
     msg._flags = MessageFlags(int(flags))
     if MessageFlags.BG_ON in msg.flags:
