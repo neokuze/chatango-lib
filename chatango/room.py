@@ -610,7 +610,7 @@ class Room(Connection):
                 if str(tname) != 'None':
                     name = tname
                 else:
-                    name = get_anon_name(contime.split(".")[0][-4:], puid[-4:])
+                    name = get_anon_name(contime, puid)
             user = User(name, isanon=isanon, puid=puid)
             if user in ({self._owner} | self.mods):
                 user.setName(name)
@@ -618,7 +618,7 @@ class Room(Connection):
             self._userdict[ssid] = [contime, user]
 
     async def _rcmd_participant(self, args):
-        cambio = args[0]  # Leave Join Change
+        cambio = args[0] # Leave Join Change
         ssid = args[1]  # session
         puid = args[2]  # UID
         name = args[3]  # username
@@ -630,7 +630,7 @@ class Room(Connection):
             if tname != 'None':
                 name = tname
             else:
-                name = get_anon_name(contime.split(".")[0][-4:], puid[-4:])
+                name = get_anon_name(contime, puid)
             isanon = True
         user = User(name, isanon=isanon, puid=puid, ip=unknown)
         user.setName(name)
