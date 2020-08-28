@@ -508,23 +508,20 @@ class Room(Connection):
 
     async def _rcmd_ok(self, args):  # TODO
         self._connected = True
-        self._correctiontime = 0
         self._owner = User(args[0])
         self._puid = args[1]
+        self._login_as = args[2]
         self._currentname = args[3]
         self._connectiontime = args[4]
+        self._correctiontime = int(float(self._connectiontime) - time.time())
         self._currentIP = args[5]
-        self._login_as = args[2]
         self._flags = RoomFlags(int(args[7]))
         if self._login_as == 'C':
-            self._user = User(get_anon_name(
-                args[4].split(".")[0][-4:], self._puid), isanon=True, ip=self._currentIP)
+            name = get_anon_name(str(self._correctiontime).split(".")[0][-4:], self._puid)
+            self._user = User(name, isanon=True, ip=self._currentIP)
         elif self._login_as == 'M':
-            self._user = User(self._currentname,
-                              puid=self._puid, ip=self._currentIP)
-        elif self._login_as == 'N':
-            pass
-        self._user.setName(self._currentname)
+            self._user = User(self._currentname, puid=self._puid, ip=self._currentIP)
+        elif self._login_as == 'N': pass
         for mod in args[6].split(";"):
             if len(mod.split(",")) > 1:
                 mod, power = mod.split(",")
@@ -807,8 +804,7 @@ class Room(Connection):
             self._history.remove(msg)
             await self.client._call_event("message_delete", msg.user, msg)
             msg.detach()
-        # Si hay menos de 20 mensajes pero el chat tiene más, por que no
-        # pedirle otros tantos?
+        # 
         if len(self._history) < 20 and not self._nomore:
             await self._send_command('get_more:20:0')
 
