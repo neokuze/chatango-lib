@@ -165,6 +165,7 @@ async def _process(room, args):
         else:
             name_color = None
     msg._user = User(name, ip=ip, isanon=isanon)
+    if not isanon: msg._user.setName(name)
     msg._user._styles._name_color = name_color
     msg._styles = msg._user._styles
     msg._styles._font_size, msg._styles._font_color, msg._styles._font_face = _parseFont(f.strip())
