@@ -491,7 +491,6 @@ class Room(Connection):
         await self._style_init(self._user)
 
     async def logout(self):
-        self._silent = True
         await self._send_command("blogout")
 
     async def send_message(self, message, use_html=False, flags=None):
@@ -888,8 +887,6 @@ class Room(Connection):
 
     async def _rcmd_logoutok(self, args, Force=False):
         """Me he desconectado, ahora usaré mi nombre de anon"""
-        if self.silent:
-            self._silent = False
         name = get_anon_name(self._connectiontime.split(".")[0][-4:], self._puid
             )
         self._user = User(name, isanon=True, ip=self._currentIP) 
