@@ -152,9 +152,8 @@ async def _process(room, args):
     if name == "":
         isanon = True
         if not tname:
-            ts = re.search("<n(.*?)/>", ":".join(msg._raw[0]))
-            if not isinstance(ts, type(None)):
-                name = get_anon_name(ts.group(1), puid)
+            if not isinstance(n, type(None)):
+                name = get_anon_name(n, puid)
             else:
                 name = get_anon_name("", puid)
         else:
@@ -165,7 +164,6 @@ async def _process(room, args):
         else:
             name_color = None
     msg._user = User(name, ip=ip, isanon=isanon)
-    if not isanon: msg._user.setName(name)
     msg._user._styles._name_color = name_color
     msg._styles = msg._user._styles
     msg._styles._font_size, msg._styles._font_color, msg._styles._font_face = _parseFont(f.strip())
