@@ -152,6 +152,7 @@ async def _process(room, args):
     if name == "":
         isanon = True
         if not tname:
+            if n in ['None']: n = None
             if not isinstance(n, type(None)):
                 name = get_anon_name(n, puid)
             else:
