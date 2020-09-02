@@ -18,7 +18,7 @@ Any question can be [here](https://palaciodehielo.chatango.com/) *en/es*, whatev
 3-A little knowledge of asyncio
 
 ### How to install
-## Linux
+## Linux / Termux
 `git clone https://github.com/neokuze/chatango-lib && cd chatango-lib`
 ## wherever is the setup.py
 `$ pip install --user .`
