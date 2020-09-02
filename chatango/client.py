@@ -79,7 +79,7 @@ class Client:
         if self._default_user_name and self._default_password and self._default_pm == True:
             await self.pm.connect(self._default_user_name, self._default_password)
         await self._call_event("start")
-        asyncio.create_task(self._dead_rooms)
+        asyncio.create_task(self._dead_rooms())
 
     @property
     def rooms(self):
@@ -167,7 +167,12 @@ class Client:
         return task
 
     async def _dead_rooms(self): # Reconnect 
-        while True: 
-            _ = [await self.leave(room) for room in self._rooms 
-              if self._rooms[room].connection == None or self._rooms[room].connection.closed]
-            await asyncio.sleep(2)
+        while True:
+            try:
+                await asyncio.sleep(75)
+                _ = [await self.leave(room) for room in self._rooms 
+                    if (self.get_room(room)._connection == None
+                        ) or hasattr(self.get_room(room)._connection, 'closed'
+                        ) and self.get_room(room)._connection.closed]
+            except RuntimeError:
+                pass
