@@ -182,6 +182,7 @@ def _id_gen():
     return ''.join(random.choice(string.ascii_uppercase) for i in range(4)).lower()
 
 def get_anon_name(tssid: str, puid: str) -> str:
+    if tssid == 'None': tssid = "" 
     puid = str(puid)
     tssid = str(tssid)
     result = []
