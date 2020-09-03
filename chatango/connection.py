@@ -29,6 +29,11 @@ class Connection:
     def connected(self):
         return self._connected
 
+    async def cancel(self):
+        self._recv_task.cancel()
+        self._ping_task.cancel()
+        await self._connection.close()
+
     async def _send_command(self, *args, terminator="\r\n\0"):
         message = ":".join(args) + terminator
         if not self._connection._closed:
@@ -56,6 +61,8 @@ class Connection:
                 try:
                     await getattr(self, f"_rcmd_{cmd}")(args)
                     
+                except (asyncio.exceptions.CancelledError):
+                    break
                 except:
                     if int(self.client.debug) == 1:
                         print("Error while handling command",
@@ -89,6 +96,11 @@ class Socket: #resolver for socket client
     @property
     def connected(self):
         return self._connected
+
+    async def cancel(self):
+        self._recv_task.cancel()
+        self._ping_task.cancel()
+        await self._connection.close()
 
     async def _send_command(self, *args, terminator="\r\n\0"): 
         if self._first_command:
