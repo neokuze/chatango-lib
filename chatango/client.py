@@ -166,13 +166,10 @@ class Client:
         
         return task
 
-    async def _dead_rooms(self): # Reconnect 
+    async def _dead_rooms(self): # Reconnect
         while True:
             try:
-                await asyncio.sleep(75)
-                _ = [await self.leave(room) for room in self._rooms 
-                    if (self.get_room(room)._connection == None
-                        ) or hasattr(self.get_room(room)._connection, 'closed'
-                        ) and self.get_room(room)._connection.closed]
-            except RuntimeError:
-                pass
+                rooms = [await self.leave(room, True) for room in self._rooms 
+                  if self._rooms[room].connection == None or self._rooms[room].connection.closed]
+            except: pass
+            await asyncio.sleep(120)
