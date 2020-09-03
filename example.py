@@ -46,4 +46,7 @@ if __name__ == "__main__":
         loop.run_until_complete(task)
         loop.run_forever()
     except KeyboardInterrupt:
+        task.cancel()
+        loop.close()
         print("Killed bot.") 
+        
