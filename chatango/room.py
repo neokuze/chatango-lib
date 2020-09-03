@@ -780,7 +780,7 @@ class Room(Connection):
         await self.client._call_event("clearall", args[0])
 
     async def _rcmd_denied(self, args):
-        await self.client._call_event("room_denied", self.name)
+        await self.client._call_event("room_denied", self)
 
     async def _rcmd_updatemoderr(self, args):
         await self.client._call_event("mod_update_error", User(args[1]), args[0])
