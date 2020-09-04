@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 import inspect
 import typing, time
+import re
 
 from .pm import PM
 from .room import Room
@@ -42,7 +43,15 @@ class Client:
         return None
 
     async def join(self, room_name: str) -> Room:
+        """
+        @parasm room_name: str
+        returns a Room object if roomname is valid
+        else is going to return None
+        """
         room_name = room_name.lower()
+        expr = re.compile("^([a-z0-9\-]{1,20})$")
+        if not expr.match(room_name):
+            return None
         if room_name in self._rooms:
             roomname, isconnected, canreconnect = AlreadyConnectedError(room_name, self._rooms[room_name]).check()
             if not isconnected and canreconnect:
