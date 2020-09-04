@@ -59,6 +59,7 @@ class Client:
                 self.check_rooms(roomname)
         room = Room(self, room_name)
         await room.connect(self._default_user_name, self._default_password)
+        await asyncio.sleep(0.2)
         return room
 
     async def leave(self, room_name: str):
