@@ -7,7 +7,7 @@ import typing
 import html
 import re, string, time
 import asyncio, aiohttp
-
+import urllib
 
 class Task:
     ALIVE = False
@@ -216,10 +216,15 @@ class Styles:
         self._use_background = 0
 
         self._blend_name = None
-        self._bgstyle = dict()
+        self._bgstyle = {
+            'align': '', 'bgc': '', 
+            'bgalp': '', 'hasrec': '0', 
+            'ialp': '', 'isvid': '0', 
+            'tile': '0', 'useimg': '0'
+            }
         self._profile = dict(
             about = dict(age='', last_change='', 
-                    gender='?',location='', d='', mini=''),
+                    gender='?',location='', d='', body=''),
             full=dict())
 
     def __dir__(self):
@@ -236,11 +241,11 @@ class Styles:
 
     @property
     def fullhtml(self):
-        return self._profile["full"]
+        return html.escape(urllib.parse.unquote(self._profile["full"] or '')).replace('\r\n', '\n')
 
     @property
     def fullmini(self):
-        return html.escape(self._profile["about"]["mini"])
+        return html.escape(urllib.parse.unquote(self._profile["about"]["body"] or '')).replace('\r\n', '\n')
 
     @property
     def bgstyle(self):

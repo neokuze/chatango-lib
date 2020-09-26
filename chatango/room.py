@@ -468,10 +468,15 @@ class Room(Connection):
         await self.client._call_event("disconnect", self)
 
     async def _connect(self, u=None, p=None):
-        self._connection = await self.client.aiohttp_session.ws_connect(
-            f"ws://{self.server}:8080/",
-            origin="http://st.chatango.com")
-        await self._send_command("bauth", self.name, self._uid, u or "", p or "")
+        try:
+            self._connection = await self.client.aiohttp_session.ws_connect(
+                f"ws://{self.server}:8080/", origin="http://st.chatango.com")
+            await self._send_command("bauth", self.name, self._uid, u or "", p or "")
+        except aiohttp.client_exceptions.ClientConnectorError:
+            self._connection = object()
+            self._connection.closed = True
+            if int(self.client.debug) > 0:
+                print(f"[debug] Server {self.server} is down!")
 
     async def login(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         if self.client._using_accounts != None and not password:
@@ -514,8 +519,8 @@ class Room(Connection):
         self._currentIP = args[5]
         self._flags = RoomFlags(int(args[7]))
         if self._login_as == 'C':
-            name = get_anon_name(str(self._correctiontime).split(".")[0][-4:], self._puid)
-            self._user = User(name, isanon=True, ip=self._currentIP)
+            uname = get_anon_name(str(self._correctiontime).split(".")[0][-4:].replace('-', ''), self._puid)
+            self._user = User(uname, isanon=True, ip=self._currentIP)
         elif self._login_as == 'M':
             self._user = User(self._currentname, puid=self._puid, ip=self._currentIP)
         elif self._login_as == 'N': pass
@@ -646,15 +651,15 @@ class Room(Connection):
                         [x for x in self._userhistory if x[1] == usr][0])
                     self._userhistory.append([contime, usr])
             if user.isanon:
-                await self.client._call_event('anonleave', user, puid)
+                await self.client._call_event('anon_leave', self, user, puid)
             else:
-                await self.client._call_event('leave', user, puid)
+                await self.client._call_event('leave', self, user, puid)
         elif cambio == '1' or not before:  # Join
             user.addSessionId(self, ssid)
             if not user.isanon and user not in self.userlist:
-                await self.client._call_event('join', user, puid)
+                await self.client._call_event('join', self, user, puid)
             elif user.isanon:
-                await self.client._call_event('anonjoin', user, puid)
+                await self.client._call_event('anon_join', self, user, puid)
             self._userdict[ssid] = [contime, user]
             lista = [x[1] for x in self._userhistory]
             if user in lista:
@@ -663,9 +668,9 @@ class Room(Connection):
         else:  # TODO
             if before.isanon:  # Login
                 if user.isanon:
-                    await self.client._call_event('anonlogin', user, puid)
+                    await self.client._call_event('anon_login', self, before, user, puid)
                 else:
-                    await self.client._call_event('userlogin', user, puid)
+                    await self.client._call_event('user_login', self, before, user, puid)
             elif not before.isanon:  # Logout
                 if before in self.userlist:
                     lista = [x[1] for x in self._userhistory]
@@ -677,7 +682,7 @@ class Room(Connection):
                         if lst:
                             self._userhistory.remove(lst[0])
                         self._userhistory.append([contime, before])
-                    await self.client._call_event('userlogout', before, puid)
+                    await self.client._call_event('user_logout', self, before, user, puid)
 
             self._userdict[ssid] = [contime, user]
 

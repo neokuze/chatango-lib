@@ -42,7 +42,7 @@ class Client:
                 len(self._using_accounts))]
         return None
 
-    async def join(self, room_name: str) -> Room:
+    async def join(self, room_name: str, anon=False) -> Room:
         """
         @parasm room_name: str
         returns a Room object if roomname is valid
@@ -58,7 +58,8 @@ class Client:
                 await self.leave(roomname)
                 self.check_rooms(roomname)
         room = Room(self, room_name)
-        await room.connect(self._default_user_name, self._default_password)
+        _accs = [self._default_user_name if not anon else "", self._default_password if not anon else ""]
+        await room.connect(*_accs)
         await asyncio.sleep(0.2)
         return room
 
@@ -185,12 +186,12 @@ class Client:
 
     async def _dead_rooms(self): # Reconnect 
         while True:
+            await asyncio.sleep(5)
             try:
-                await asyncio.sleep(75)
                 _ = [self.reconnect(room) for room in self._rooms 
-                    if (self.get_room(room)._connection == None
-                        ) or hasattr(self.get_room(room)._connection, 'closed'
-                        ) and self.get_room(room)._connection.closed]
+                    if (hasattr(self.get_room(room)._connection,
+                        'closed') and self.get_room(room)._connection.closed
+                    ) and self.get_room(room).reconnect == True]
             except (asyncio.exceptions.CancelledError):
                 break
             except RuntimeError:

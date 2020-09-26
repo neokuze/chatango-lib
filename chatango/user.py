@@ -193,43 +193,49 @@ class User: #TODO a new format for users
                 del self._sids[room]
 
     async def get_styles(self):
+        position = dict(tl='top left', tr='top right', bl='bottom left', br='bottom right')
         if not self.isanon:
             tasks = await make_requests(self._links[:2])
             msgs = tasks["msgstyles"].result()
             msgbg = tasks["msgbg"].result()
-            styles = json.loads(msgs)
-            bg = msgbg.replace("<?xml version=\"1.0\" ?>", "")
-            self._styles._name_color, self._styles._font_face = styles["nameColor"], int(styles["fontFamily"])
-            self._styles._font_size, self._styles._font_color = int(styles["fontSize"]), styles["textColor"]
-            self._styles._use_background = int(styles["usebackground"])
-            self._styles._bgstyle = dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', bg)])
-            position = dict(tl='top left', tr='top right', bl='bottom left', br='bottom right')
-            self._styles._bgstyle["align"] = position[self.styles.bgstyle["align"]]
+            if msgbg != None:
+                bg = msgbg.replace("<?xml version=\"1.0\" ?>", "")
+                self._styles._bgstyle.update(
+                    dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', bg)]))
+                self._styles._bgstyle["align"] = position[self.styles.bgstyle["align"]]
+            if msgs != None:
+                styles = json.loads(msgs)
+                self._styles._name_color, self._styles._font_face = styles["nameColor"], int(styles["fontFamily"])
+                self._styles._font_size, self._styles._font_color = int(styles["fontSize"]), styles["textColor"]
+                self._styles._use_background = int(styles["usebackground"])
             
     async def get_main_profile(self):
-        if not self.isanon:
+        _parse = dict(l="location",body="body", d="d", b="last_change")
+        if not self.isanon: 
             tasks = await make_requests(self._links[2:])
-            about = tasks["mod1"].result()
-            about = about.replace("<?xml version=\"1.0\" ?>", "")
-            gender,age,location,last_change,d,body = [""]*6
-            if len(about.split("<body>")) >1:
-                body = about.split("<body>")[1].split("</body>")[0]
-                body = urllib.parse.unquote(body)
-            if len(about.split("<s>")) >1:
-                gender = about.split("<s>")[1].split("</s>")[0]
-            if len(about.split("<l")) >1:
-                location = about.split("<l")[1].split(">",1)[1].split("</l>")[0]
-            if len(about.split("<b>")) >1:
-                last_change = about.split("<b>")[1].split("</b>")[0]
-            if last_change != "":
-                age = abs(datetime.datetime.now().year-int(last_change.split("-")[0]))
-            if len(about.split("<d>")) >1:
-                d = about.split("<d>")[1].split("</d>")[0]
-            self._styles._profile["about"] = dict(age=age, last_change=last_change ,gender=gender or '?',location=location, d=d, mini=body)
+            _items = tasks["mod1"].result()
+            if _items != None:
+                about = _items.replace("<?xml version=\"1.0\" ?>", "")
+                self._styles._profile["about"].update(
+                    {'gender': about.split("<s>")[1].split('<')[0] if len(about.split("<s>")) > 1 else '?'}
+                    )
+                for tag in list(_parse.keys()):
+                    k = _parse[tag]
+                    if tag == "l":
+                        if len(about.split("<l")) > 1:
+                            result = about.split("<l")[1].split(">",1)[1].split("</l>")[0]
+                    else:
+                        result = re.findall(r"((?:<{0}>)+)([^>].*?[^<])((?:</{0}>)+)".format(tag), about)
+                        if isinstance(result, type([])):
+                            result = result[0][1] if result else ""
+                    if tag == "b":
+                        age = abs(datetime.datetime.now().year-int(result.split("-")[0]))
+                        self._styles._profile["about"].update({'age': age})
+                    if result: self._styles._profile["about"].update({f"{k}": result})
             try:
                 fullprof = tasks["mod2"].result()
-                if fullprof is not None and str(fullprof)[:5] == "<?xml":
-                    self._styles._profile["full"] = urllib.parse.unquote(fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0])
+                if fullprof != None and str(fullprof)[:5] == "<?xml":
+                    self._styles._profile["full"] = fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0]
             except:
                 pass
 
