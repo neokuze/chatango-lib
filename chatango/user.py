@@ -203,7 +203,6 @@ class User:  # TODO a new format for users
         self._styles._bgstyle = result['msgbg']
         self._styles._profile['about'] = result['mod1']
         self._styles._profile['full'] = result['mod2']
-        print(result['msgbg'], result['mod1'], result['mod2'])
 
     def __links(self, user_dir):
         directory = '/%s/%s/' % ('/'.join((user_dir * 2)[:2]), user_dir)
@@ -266,14 +265,13 @@ class User:  # TODO a new format for users
                                     if isinstance(_r, type([])):
                                         r = _r[0][1] if _r else ""
                             except:
-                                continue
+                                pass
                             prof[wtt[tag]] = r
                         r = prof
 
                     elif ph[0] == "mod2":
                         if src and "<body>" in src:
                             r = src.split("<body>")[1].split('</body>')[0]
-                    print(ph[0], r)
                     result[ph[0]] = r
         return result
 
