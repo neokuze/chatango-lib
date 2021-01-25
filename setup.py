@@ -16,7 +16,7 @@ readme = ""
 with open("README.md") as f:
     readme = f.read()
 
-setup(name="chatango.py",
+setup(name="chatango-lib",
       author="Yado",
       url="https://github.com/neokuze/chatango-lib",
       version=version,
