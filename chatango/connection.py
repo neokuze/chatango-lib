@@ -7,22 +7,40 @@ import sys
 import traceback
 import socket
 
+
 class Connection:
-    def __init__(self, client):
+    def __init__(self, client, ws=True):
         self.client = client
         self._connected = False
+        self.type = 'ws' if ws else 'sock'
         self._connection = None
         self._recv_task = None
         self._ping_task = None
         self._first_command = True
-        
+        self._recv = None if not ws else False
+
+    async def sock_connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
+        """
+        user_name, password. For the socket client
+        """
+        if self.type == 'ws':
+            return
+        if self.connected:
+            raise AlreadyConnectedError(getattr(self, "name", None), self)
+        self._recv, self._connection = await asyncio.open_connection(
+            f"{self.server}", self.port)
+        self._recv_task = asyncio.create_task(self.s_do_recv())
+        self._ping_task = asyncio.create_task(self._do_ping())
+        await self._login(user_name, password)
 
     async def connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
+        if self.type == 'sock':
+            return
         if self.connected:
             raise AlreadyConnectedError(getattr(self, "name", None), self)
         self._first_command = True
-        await self._connect(u=user_name, p=password)
-        self._recv_task = asyncio.create_task(self._do_recv())
+        await self._login(u=user_name, p=password)
+        self._recv_task = asyncio.create_task(self.ws_do_recv())
         self._ping_task = asyncio.create_task(self._do_ping())
 
     @property
@@ -36,81 +54,17 @@ class Connection:
 
     async def _send_command(self, *args, terminator="\r\n\0"):
         message = ":".join(args) + terminator
-        if not self._connection._closed:
-            await self._connection.send_str(message)
-
-    async def _do_ping(self):
-        await asyncio.sleep(20)
-        # ping is an empty message
-        await self._send_command("\r\n", terminator="\x00")
-        await self.client._call_event("ping", self)
-        self._ping_task = asyncio.create_task(self._do_ping())
-
-    async def _do_recv(self):
-        while True:
-            message = await self._connection.receive()
-            assert message.type is aiohttp.WSMsgType.TEXT
-            if not message.data:
-                # pong
-                cmd = "pong"
-                args = ""
-            else:
-                cmd, _, args = message.data.partition(":")
-            args = args.split(":")
-            if hasattr(self, f"_rcmd_{cmd}"):
-                try:
-                    await getattr(self, f"_rcmd_{cmd}")(args)
-                    
-                except (asyncio.exceptions.CancelledError):
-                    break
-                except:
-                    if int(self.client.debug) == 1:
-                        print("Error while handling command",
-                              cmd, file=sys.stderr)
-                        traceback.print_exc(file=sys.stderr)
-            elif int(self.client.debug) == 1:
-                print(self, "Unhandled received command", cmd, args, file=sys.stderr)
-        
-class Socket: #resolver for socket client
-    def __init__(self, client):
-        self.client = client
-        self._first = True
-        self._connected = False
-        self._recv = None
-        self._connection = None
-        self._recv_task = None
-        self._ping_task = None
-
-    async def connect(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
-        """
-        user_name, password. For the socket client
-        """
-        if self.connected:
-            raise AlreadyConnectedError(getattr(self, "name", None), self)
-        self._recv, self._connection = await asyncio.open_connection(
-            f"{self.server}", self.port)
-        self._recv_task = asyncio.create_task(self._do_recv())
-        self._ping_task = asyncio.create_task(self._do_ping())
-        await self._login(user_name, password)
-
-    @property
-    def connected(self):
-        return self._connected
-
-    async def cancel(self):
-        self._recv_task.cancel()
-        self._ping_task.cancel()
-        await self._connection.close()
-
-    async def _send_command(self, *args, terminator="\r\n\0"): 
         if self._first_command:
             terminator = "\x00"
             self._first_command = False
         else:
             terminator = "\r\n\0"
-        message = ":".join(args) + terminator
-        self._connection.write(message.encode())
-        await self._connection.drain()
+        if self.type == 'sock':
+            self._connection.write(message.encode())
+            await self._connection.drain()
+        else:
+            if not self._connection._closed:
+                await self._connection.send_str(message)
 
     async def _do_ping(self):
         await asyncio.sleep(20)
@@ -119,16 +73,27 @@ class Socket: #resolver for socket client
         await self.client._call_event("ping", self)
         self._ping_task = asyncio.create_task(self._do_ping())
 
-    async def _do_recv(self):
+    async def ws_do_recv(self):
         while True:
-            rcv = await self._recv.read(2048) #TODO if the rcv is higher than bytes, may is cutted
+            try:
+                message = await self._connection.receive()
+                assert message.type is aiohttp.WSMsgType.TEXT
+                await self._do_process(message.data)
+            except (ConnectionResetError) as error:
+                if self.client.debug:
+                    print(f"[{self.name} :Connection Reset by Host]", error)
+
+    async def s_do_recv(self):
+        while True:
+            # TODO if the rcv is higher than bytes, may is cutted
+            rcv = await self._recv.read(2048)
             await asyncio.sleep(0.0001)
             if rcv:  # si recibe datos.
                 data = rcv.decode()
-                if data == "\r\n\x00": #pong
+                if data == "\r\n\x00":  # pong
                     await self._do_process("")
                 else:
-                    recv = data.split("\r\n\x00") #event
+                    recv = data.split("\r\n\x00")  # event
                     for r in recv:
                         if r != "":
                             await self._do_process(r)
@@ -156,4 +121,5 @@ class Socket: #resolver for socket client
                           cmd, file=sys.stderr)
                     traceback.print_exc(file=sys.stderr)
         elif __debug__:
-            print("Unhandled received command", cmd, file=sys.stderr)
+            print("Unhandled received command",
+                  cmd, repr(args), file=sys.stderr)

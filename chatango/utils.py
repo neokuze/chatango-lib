@@ -2,12 +2,17 @@
 Utility module
 """
 import asyncio
-import random, mimetypes
+import random
+import mimetypes
 import typing
 import html
-import re, string, time
-import asyncio, aiohttp
+import re
+import string
+import time
+import asyncio
+import aiohttp
 import urllib
+
 
 class Task:
     ALIVE = False
@@ -17,7 +22,7 @@ class Task:
 
     async def _heartbeat():
         if Task.ALIVE:
-                # Only one call at a time for this method is allowed
+            # Only one call at a time for this method is allowed
             return
         Task.ALIVE = True
         while Task.ALIVE:
@@ -39,10 +44,10 @@ class Task:
                 print("Task error {}: {}".format(task.func, e))
                 task.cancel()
         if not Task._INSTANCES:
-        
+
             Task.ALIVE = False
-    
-    def __init__(self, timeout, func = None, interval = False, *args, **kw):
+
+    def __init__(self, timeout, func=None, interval=False, *args, **kw):
         """
         Inicia una tarea nueva
         @param mgr: El dueño de esta tarea y el que la mantiene con vida
@@ -57,12 +62,12 @@ class Task:
         Task._INSTANCES.add(self)
         if not Task.ALIVE:
             Task._THREAD = asyncio.create_task(Task._heartbeat())
-        
+
     def cancel(self):
         """Cancel task"""
         if self in Task._INSTANCES:
             Task._INSTANCES.remove(self)
-                
+
     def __repr__(self):
         interval = "Interval" if self.isInterval else "Timeout"
         return f"<Task {interval}: {self.timeout} >"
@@ -78,11 +83,14 @@ async def get_token(user_name, passwd):
     async with aiohttp.ClientSession() as session:
         async with session.post(chatango[0], data=payload) as resp:
             if chatango[1] in resp.cookies:
-                token = str(resp.cookies[chatango[1]]).split("=")[1].split(";")[0]
+                token = str(resp.cookies[chatango[1]]).split(
+                    "=")[1].split(";")[0]
     return token
+
 
 def multipart(data, files, boundary=None):
     lineas = []
+
     def escape_quote(s):
         return s.replace('"', '\\"')
     if boundary == None:
@@ -90,28 +98,29 @@ def multipart(data, files, boundary=None):
             random.choice(string.digits + string.ascii_letters) for x in range(30))
     for nombre, valor in data.items():
         lineas.extend(('--%s' % boundary,
-                        'Content-Disposition: form-data; name="%s"' % nombre,
-                        '', str(valor)))
+                       'Content-Disposition: form-data; name="%s"' % nombre,
+                       '', str(valor)))
     for nombre, valor in files.items():
         filename = valor['filename']
         if 'mimetype' in valor:
             mimetype = valor['mimetype']
         else:
             mimetype = mimetypes.guess_type(filename)[
-                            0] or 'application/octet-stream'
+                0] or 'application/octet-stream'
         lineas.extend(('--%s' % boundary,
-                        'Content-Disposition: form-data; name="%s"; '
-                        'filename="%s"' % (
-                            escape_quote(nombre), escape_quote(filename)),
-                        'Content-Type: %s' % mimetype, '', valor['content']))
+                       'Content-Disposition: form-data; name="%s"; '
+                       'filename="%s"' % (
+                           escape_quote(nombre), escape_quote(filename)),
+                       'Content-Type: %s' % mimetype, '', valor['content']))
     lineas.extend(('--%s--' % boundary, '',))
     body = '\r\n'.join(lineas)
     headers = {
         'Content-Type':   'multipart/form-data; boundary=%s' % boundary,
         'Content-Length': str(len(body))
-        }
+    }
     return body, headers
-    
+
+
 async def sessionget(session, url):
     async with session.get(url) as resp:
         assert resp.status == 200
@@ -121,6 +130,7 @@ async def sessionget(session, url):
         except:
             return None
 
+
 async def make_requests(urls):
     r = {}
     async with aiohttp.ClientSession() as session:
@@ -129,6 +139,7 @@ async def make_requests(urls):
             r[x[0]] = task
         await asyncio.gather(*r.values())
     return r
+
 
 def gen_uid() -> str:
     """
@@ -154,13 +165,16 @@ def _clean_message(msg: str, pm: bool = False) -> [str, str, str]:  # TODO
     msg = html.unescape(msg).replace('\r', '\n')
     return msg, n or '', f or ''
 
+
 def _account_selector(room):
     if room.client._using_accounts != None:
-        accs = [x for x in room.client._using_accounts if x[0].lower() == room.user.name]
+        accs = [x for x in room.client._using_accounts if x[0].lower()
+                == room.user.name]
         data = [accs[0][0], accs[0][1]]
     else:
         data = [room.client._default_user_name, room.client._default_password]
     return data
+
 
 def _strip_html(msg: str) -> str:
     li = msg.split("<")
@@ -178,8 +192,10 @@ def _strip_html(msg: str) -> str:
                 ret.append(data[1])
         return "".join(ret)
 
+
 def _id_gen():
     return ''.join(random.choice(string.ascii_uppercase) for i in range(4)).lower()
+
 
 def get_anon_name(tssid: str, puid: str) -> str:
     puid = str(puid)
@@ -197,6 +213,7 @@ def get_anon_name(tssid: str, puid: str) -> str:
     name = "".join(result)
     return 'anon' + name
 
+
 def _parseFont(f: str, pm=False) -> (str, str, str):
     if pm:
         regex = r'x(\d{1,2})?s([a-fA-F0-9]{6}|[a-fA-F0-9]{3})="|\'(.*?)"|\''
@@ -207,24 +224,25 @@ def _parseFont(f: str, pm=False) -> (str, str, str):
         return None, None, None
     return match.groups()
 
+
 class Styles:
-    def __init__(self):
-        self._name_color = str("000000")
-        self._font_color = str("000000")
-        self._font_size = 11
-        self._font_face = 1
-        self._use_background = 0
+    def __init__(self, name_color=None, font_color=None, font_face=None, font_size=None, use_background=None):
+        self._name_color = name_color if name_color else str("000000")
+        self._font_color = font_color if font_color else str("000000")
+        self._font_size = font_size if font_size else 11
+        self._font_face = font_face if font_face else 0
+        self._use_background = int(use_background) if use_background else 0
 
         self._blend_name = None
         self._bgstyle = {
-            'align': '', 'bgc': '', 
-            'bgalp': '', 'hasrec': '0', 
-            'ialp': '', 'isvid': '0', 
+            'align': '', 'bgc': '',
+            'bgalp': '', 'hasrec': '0',
+            'ialp': '', 'isvid': '0',
             'tile': '0', 'useimg': '0'
-            }
+        }
         self._profile = dict(
-            about = dict(age='', last_change='', 
-                    gender='?',location='', d='', body=''),
+            about=dict(age='', last_change='',
+                       gender='?', location='', d='', body=''),
             full=dict())
 
     def __dir__(self):
@@ -241,11 +259,21 @@ class Styles:
 
     @property
     def fullhtml(self):
-        return html.escape(urllib.parse.unquote(self._profile["full"] or '')).replace('\r\n', '\n')
+        o = html.escape(urllib.parse.unquote(
+            self._profile["full"] or '')).replace('\r\n', '\n')
+        if o:
+            return o
+        else:
+            return None
 
     @property
     def fullmini(self):
-        return html.escape(urllib.parse.unquote(self._profile["about"]["body"] or '')).replace('\r\n', '\n')
+        o = html.escape(urllib.parse.unquote(
+            self._profile["about"]["body"] or '')).replace('\r\n', '\n')
+        if o:
+            return o
+        else:
+            return None
 
     @property
     def bgstyle(self):
@@ -253,7 +281,7 @@ class Styles:
 
     @property
     def use_background(self):
-     return self._use_background
+        return self._use_background
 
     @property
     def default(self):
@@ -276,4 +304,12 @@ class Styles:
     @property
     def font_face(self):
         return self._font_face
-        
+
+
+def _convert_dict(src):
+    r = {}
+    m = src.split(' ')
+    for w in m:
+        k, v = w.split('=')
+        r.update({k: v})
+    return r

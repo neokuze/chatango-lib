@@ -301,12 +301,15 @@ class Room(Connection):
         return None
 
     async def upload_image(self, path, return_url=False):
-        if self.user.isanon: return None
+        if self.user.isanon:
+            return None
         with open(path, mode='rb') as f:
-            files = {'filedata': {'filename': path, 'content': f.read().decode('latin-1')}}
-        account, success= _account_selector(self), None
-        data, headers = multipart(dict(u=account[0],p=account[1]), files)
-        headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
+            files = {'filedata': {'filename': path,
+                                  'content': f.read().decode('latin-1')}}
+        account, success = _account_selector(self), None
+        data, headers = multipart(dict(u=account[0], p=account[1]), files)
+        headers.update(
+            {"host": "chatango.com", "origin": "http://st.chatango.com"})
         async with aiohttp.ClientSession(headers=headers) as session:
             async with session.post("http://chatango.com/uploadimg", data=data.encode("latin-1")) as resp:
                 response = await resp.text()
@@ -319,7 +322,7 @@ class Room(Connection):
             else:
                 return f"img{success}"
         return None
-    
+
     def get_last_message(self, user=None):
         """Obtener el último mensaje de un usuario en una sala"""
         if not user:
@@ -467,7 +470,7 @@ class Room(Connection):
             x.removeSessionId(self, 0)
         await self.client._call_event("disconnect", self)
 
-    async def _connect(self, u=None, p=None):
+    async def _login(self, u=None, p=None):
         try:
             self._connection = await self.client.aiohttp_session.ws_connect(
                 f"ws://{self.server}:8080/", origin="http://st.chatango.com")
@@ -519,11 +522,14 @@ class Room(Connection):
         self._currentIP = args[5]
         self._flags = RoomFlags(int(args[7]))
         if self._login_as == 'C':
-            uname = get_anon_name(str(self._correctiontime).split(".")[0][-4:].replace('-', ''), self._puid)
+            uname = get_anon_name(str(self._correctiontime).split(".")[
+                                  0][-4:].replace('-', ''), self._puid)
             self._user = User(uname, isanon=True, ip=self._currentIP)
         elif self._login_as == 'M':
-            self._user = User(self._currentname, puid=self._puid, ip=self._currentIP)
-        elif self._login_as == 'N': pass
+            self._user = User(self._currentname,
+                              puid=self._puid, ip=self._currentIP)
+        elif self._login_as == 'N':
+            pass
         for mod in args[6].split(";"):
             if len(mod.split(",")) > 1:
                 mod, power = mod.split(",")
@@ -534,15 +540,13 @@ class Room(Connection):
 
     async def _style_init(self, user):
         if not user.isanon:
-            if self.user.ispremium:
-                await user.get_styles()
-            await user.get_main_profile()
+            await user.get_profile()
         else:
             self.set_font(
-                name_color = "000000",
-                font_color = "000000",
-                font_size  = 11,
-                font_face  =  1
+                name_color="000000",
+                font_color="000000",
+                font_size=11,
+                font_face=1
             )
 
     async def _rcmd_inited(self, args):
@@ -620,13 +624,13 @@ class Room(Connection):
             self._userdict[ssid] = [contime, user]
 
     async def _rcmd_participant(self, args):
-        cambio = args[0] # Leave Join Change
+        cambio = args[0]  # Leave Join Change
         ssid = args[1]  # session
         puid = args[2]  # UID
         name = args[3]  # username
         tname = args[4]  # Anon Name
         unknown = args[5]  # ip
-        contime = args[6] # time
+        contime = args[6]  # time
         isanon = False
         if name == 'None':
             if tname != 'None':
@@ -806,7 +810,7 @@ class Room(Connection):
             self._history.remove(msg)
             await self.client._call_event("message_delete", msg.user, msg)
             msg.detach()
-        # 
+        #
         if len(self._history) < 20 and not self._nomore:
             await self._send_command('get_more:20:0')
 
@@ -891,7 +895,7 @@ class Room(Connection):
     async def _rcmd_logoutok(self, args, Force=False):
         """Me he desconectado, ahora usaré mi nombre de anon"""
         name = get_anon_name(str(self._correctiontime).split(".")[0][-4:], self._puid
-            )
+                             )
         self._user = User(name, isanon=True, ip=self._currentIP)
         # TODO fail aquiCLOSE
         await self.client._call_event('logout', self._user, '?')

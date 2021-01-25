@@ -6,4 +6,4 @@ from .utils import *
 from .user import *
 from .connection import *
 
-__version__ = "1.2.3"
+__version__ = "1.2.5"
