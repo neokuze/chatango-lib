@@ -17,6 +17,10 @@ class MyBot(chatango.Client):
         print(f"[{room.type}] Disconnected from", room)
 
     async def on_room_denied(self, room):
+        """
+            This event get out when a room is deleted.
+            self.rooms.remove(room_name)
+        """
         print(f"[{room.type}] Rejected from", room)
         
     async def on_room_init(self, room):
