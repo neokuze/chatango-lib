@@ -8,23 +8,25 @@ import re
 from .pm import PM
 from .room import Room
 from .exceptions import AlreadyConnectedError, NotConnectedError
-from .utils import Task
+from .utils import Task, trace
 from .message import Fonts
 
 
 class Client:
-    def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None):
+    def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None, debug=0):
         if aiohttp_session is None:
-            aiohttp_session = aiohttp.ClientSession()
+            aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
 
         self.aiohttp_session = aiohttp_session
         self.loop = self.aiohttp_session.loop
         self.pm = None
+        self.user = None
 
-        self.silent = int(2)
-        self.debug = 1
+        self.debug = 0 # debug
+        self._rec_time = 1 # reconnection time task
 
         self._running = False
+        self.silent = 2
         self._rooms = {}
         self.errors = []
         self.__rcopy = {}
@@ -74,6 +76,8 @@ class Client:
             return f"{False if NotConnectedError(room_name) else True}"
         # has to be in the dict until it's fully disconnected
         if room_name in self._rooms and self._rooms[room_name]._connection is not None:
+            if self._rooms[room_name].reconnect:
+                self._rooms[room_name].change_reconnect
             await self._rooms[room_name].cancel()
             if room_name in self._rooms:
                 del self._rooms[room_name]
@@ -101,9 +105,9 @@ class Client:
         self._running = True
         await self._call_event("init")
         if self._default_pm == True:
-            await self.pm_start()
-        await self._call_event("start")
+            await self.pm_start(self._default_user_name, self._default_password)
         self.__dead_rooms = asyncio.create_task(self._dead_rooms())
+        await self._call_event("start")
 
     async def pm_start(self, user=None, passwd=None):
         self.pm = PM(self)
@@ -194,14 +198,16 @@ class Client:
         return task
 
     async def _dead_rooms(self):  # Reconnect
-        while True:
-            await asyncio.sleep(15.04)
-            try:
+        x = self._rec_time  # minutes
+        await asyncio.sleep(60 * x)
+        try:
+            if self.rooms:
                 for room in self.rooms:
                     if hasattr(room, '_connection') and room._connection.closed == True:
-                        self.reconnect(room.name)
-            except (asyncio.exceptions.CancelledError):
-                self.__dead_rooms.cancel()
-                break
-            except RuntimeError:
-                pass
+                        if room._connection._reconnect:
+                            await self.__reconnect(room.name) # reconnect.
+                        else:
+                            await self.leave(room.name) # Fully disconnect
+        except:
+            pass
+        self.__dead_rooms = asyncio.create_task(self._dead_rooms())
