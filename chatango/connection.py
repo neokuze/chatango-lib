@@ -80,6 +80,8 @@ class Connection:
                     await self._do_process(message.data)
                 elif message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSING, aiohttp.WSMsgType.CLOSE):
                     raise WebsocketClosure
+                else:
+                    pass
             except (asyncio.TimeoutError, WebsocketClosure) as error:
                 if self.client.debug:
                     print(f"[{self.name} :Connection Rejected. ]", error)
