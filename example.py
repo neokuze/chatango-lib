@@ -11,21 +11,24 @@ class MyBot(chatango.Client):
         await self.join("examplegroup")
 
     async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
-        print("Connected to", room)
+        print(f"[{room.type}] Connected to", room)
        
     async def on_disconnect(self, room):
-        print(f"Disconnected from {room}")
+        print(f"[{room.type}] Disconnected from", room)
 
+    async def on_room_denied(self, room):
+        print(f"[{room.type}] Rejected from", room)
+        
     async def on_room_init(self, room):
         if room.user.isanon:
-            room.setFont(
+            room.set_font(
                 name_color = "000000",
                 font_color = "000000",
                 font_face  = 1,
                 font_size  = 11
             )
         else:
-            await room.user.get_main_profile()
+            await room.user.get_profile()
             await room.enable_bg()
             
     async def on_message(self, message):
@@ -39,8 +42,10 @@ class MyBot(chatango.Client):
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     bot = MyBot()
-    bot.default_user("examplebot", pm=False) #True if passwd was input.
-    ListBots = [bot.start()]
+    bot.default_user("ExampleBot", "") # easy_start
+#     or_accounts = [["user1","passwd1"], ["user2","passwd2"]]
+#     bot.default_user(accounts=or_accounts, pm=False) #True if passwd was input.
+    ListBots = [bot.start()] # Multiple instances 
     task = asyncio.gather(*ListBots, return_exceptions=True)
     try:
         loop.run_until_complete(task)
