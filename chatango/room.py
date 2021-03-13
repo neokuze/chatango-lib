@@ -382,11 +382,11 @@ class Room(Connection):
 
     async def clear_all(self):
         """Borra todos los mensajes"""
-        if self.user in self._mods and ModeratorFlags.EDIT_GROUP in self._mods[self.user] or self.user == self.owner:
-            await self._send_command("clearall")
-            return True
-        else:
-            return False
+        if self.user in self._mods:
+            if ModeratorFlags.EDIT_GROUP in self._mods[self.user] or self.user == self.owner:
+                await self._send_command("clearall")
+                return True
+        return False
 
     async def clear_user(self, user):
         # TODO
