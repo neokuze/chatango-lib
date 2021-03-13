@@ -409,6 +409,7 @@ class Room(Connection):
             msg = self.get_last_message(user)
             if msg:
                 await self.delete_message(msg)
+                return True
         return False
 
     async def request_unbanlist(self):
