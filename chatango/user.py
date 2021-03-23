@@ -240,7 +240,13 @@ class User:  # TODO a new format for users
                                         bl='bottom left', br='bottom right')
                         r = dict([url.replace('"', '').split("=")
                                   for url in re.findall('(\w+=".*?")', src)])
-                        r.update({'align': position[r['align']]})
+                        if "fontFamily" in src: # No bg in account / maybe a bug  #TODO
+                            r = {'align': 'None', 'bgalp': 'None', 'bgc': 'None',
+                             'hasrec': 'None', 'ialp': 'None',
+                             'isvid': 'None', 'tile': 'None', 'useimg': 'None'}
+                        else:
+                            r.update({'align': position[r['align']]})
+
                     elif ph[0] == "mod1":
                         wtt = dict(l="location", body="body",
                                    d="d", b="last_change", s="gender")

@@ -1,3 +1,5 @@
+import asyncio
+
 class BaseRoomError(Exception):
     room_name: str
 
@@ -5,6 +7,7 @@ class BaseRoomError(Exception):
         super().__init__(room_name, room)
         self.room_name = room_name
         self.room = room
+
 
 class AlreadyConnectedError(BaseRoomError):
     def __init__(self, room_name: str, room=None):
@@ -23,9 +26,8 @@ class NotConnectedError(BaseRoomError):
         self.room_name = room_name
         self.room = room
 
-class WebsocketClosure(Exception):
+class WebSocketClosure(Exception):
     """
         trying to except when is closed.
     """
     pass
-

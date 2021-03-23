@@ -21,16 +21,13 @@ class Client:
         self.loop = self.aiohttp_session.loop
         self.pm = None
         self.user = None
-
-        self.debug = 0 # debug
-        self._rec_time = 1 # reconnection time task
+        self.debug = 1 # debug
 
         self._running = False
         self.silent = 2
         self._rooms = {}
         self.errors = []
         self.__rcopy = {}
-        self.__reconnect = []
         self._using_accounts = None
         self._default_user_name = None
         self._default_password = None
@@ -68,7 +65,6 @@ class Client:
                  self._default_password if not anon else ""]
         await room.connect(*_accs)
         await asyncio.sleep(0.2)
-        return room
 
     async def leave(self, room_name: str):
         room_name = room_name.lower()
@@ -76,43 +72,23 @@ class Client:
             return f"{False if NotConnectedError(room_name) else True}"
         # has to be in the dict until it's fully disconnected
         if room_name in self._rooms and self._rooms[room_name]._connection is not None:
-            if self._rooms[room_name].reconnect:
-                self._rooms[room_name].change_reconnect
             await self._rooms[room_name].cancel()
             if room_name in self._rooms:
                 del self._rooms[room_name]
             await self._call_event("disconnect", room_name)
             return True
 
-    def reconnect(self, room):  # call this one
-        """
-        Reconnect function
-        @parasm: room is str. 
-        """
-        self.set_timeout(1, self.__reconnect, room)
-
-    async def __reconnect(self, room_name: str):
-        """
-        Raw reconnect, is not a good idea to handle manually.
-        Probably can block the thread.
-        """
-        await self.leave(room_name)
-        await asyncio.sleep(0.1)
-        await self._call_event("reconnect", room_name)
-        asyncio.create_task(self.join(room_name))
-
-    async def start(self):
+    async def start(self, user=None, passwd=None, pm=None):
         self._running = True
         await self._call_event("init")
-        if self._default_pm == True:
-            await self.pm_start(self._default_user_name, self._default_password)
+        if pm or self._default_pm == True:
+            await self.pm_start(user, passwd)
         self.__dead_rooms = asyncio.create_task(self._dead_rooms())
-        await self._call_event("start")
 
-    async def pm_start(self, user=None, passwd=None):
+    async def pm_start(self, user, passwd):
         self.pm = PM(self)
-        await self.pm.sock_connect(
-            user or self._default_user_name, passwd or self._default_password)
+        await self.pm.sock_connect(user or self._default_user_name,
+            passwd or self._default_password)
 
     @property
     def rooms(self):
@@ -198,16 +174,14 @@ class Client:
         return task
 
     async def _dead_rooms(self):  # Reconnect
-        x = self._rec_time  # minutes
+        x = 1  # minutes
         await asyncio.sleep(60 * x)
         try:
-            if self.rooms:
-                for room in self.rooms:
-                    if hasattr(room, '_connection') and room._connection.closed == True:
-                        if room._connection._reconnect:
-                            await self.__reconnect(room.name) # reconnect.
-                        else:
-                            await self.leave(room.name) # Fully disconnect
+            for room in self.rooms:
+                if hasattr(room, '_connection') and room._connection.closed == True:
+                    if room.name in self._rooms:
+                        self.set_timeout(1, self.leave, room.name)
+                        self.set_timeout(3, self.join, room.name)
         except:
             pass
         self.__dead_rooms = asyncio.create_task(self._dead_rooms())

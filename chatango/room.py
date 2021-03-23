@@ -507,6 +507,8 @@ class Room(Connection):
             msg = str(message)
             if not use_html:
                 msg = html.escape(msg, quote=False)
+            else:
+                msg = html.unescape(msg)
             msg = msg.replace('\n', '\r').replace('~', '&#126;')
             for msg in message_cut(msg, self._maxlen):
                 message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
@@ -898,7 +900,7 @@ class Room(Connection):
         name = get_anon_name(str(self._correctiontime).split(".")[0][-4:], self._puid
                              )
         self._user = User(name, isanon=True, ip=self._currentIP)
-        # TODO fail aquiCLOSE
+        # TODO fail aqui CLOSE
         await self.client._call_event('logout', self._user, '?')
 
     async def _rcmd_updateprofile(self, args):
@@ -911,3 +913,9 @@ class Room(Connection):
         user = User.get(args[0])
         user._profile = None
         await self.client._call_event('profile_reload', user)
+
+    async def _rcmd_verificationchanged(self, args):
+        """
+        Event received when the bot is connected to a room, and you verify your mail.
+        """
+        pass 
