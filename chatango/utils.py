@@ -207,20 +207,21 @@ def _id_gen():
 
 
 def get_anon_name(tssid: str, puid: str) -> str:
-    puid = str(puid)
-    tssid = str(tssid)
-    result = []
-    if len(puid) > 8:
-        puid = puid[:8]
-    if len(tssid) != 4:
-        tssid = "3452"
-    n = puid[-4:]
-    for i in range(0, len(n)):
-        number1 = int(n[i:i + 1])
-        number2 = int(tssid[i:i + 1])
-        result.append(str(number1+number2)[-1:])
-    name = "".join(result)
-    return 'anon' + name
+    puid = puid.zfill(8)[4:8]
+    ts = str(tssid)
+    if not ts or len(ts) < 4:
+        ts = '3452'
+    else:
+        ts = ts.split('.')[0][-4:]
+    __reg5 = ''
+    __reg1 = 0
+    while __reg1 < len(puid):
+        __reg4 = int(puid[__reg1])
+        __reg3 = int(ts[__reg1])
+        __reg2 = str(__reg4 + __reg3)
+        __reg5 += __reg2[-1:]
+        __reg1 += 1
+    return 'anon' + __reg5.zfill(4)
 
 
 def _parseFont(f: str, pm=False) -> (str, str, str):
