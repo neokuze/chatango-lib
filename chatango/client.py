@@ -21,7 +21,7 @@ class Client:
         self.loop = self.aiohttp_session.loop
         self.pm = None
         self.user = None
-        self.debug = 1 # debug
+        self.debug = 3 # debug
 
         self._running = False
         self.silent = 2
@@ -83,9 +83,10 @@ class Client:
         await self._call_event("init")
         if pm or self._default_pm == True:
             await self.pm_start(user, passwd)
+        await self._call_event("start")
         self.__dead_rooms = asyncio.create_task(self._dead_rooms())
 
-    async def pm_start(self, user, passwd):
+    async def pm_start(self, user=None, passwd=None):
         self.pm = PM(self)
         await self.pm.sock_connect(user or self._default_user_name,
             passwd or self._default_password)

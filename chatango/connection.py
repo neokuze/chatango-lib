@@ -122,7 +122,8 @@ class Connection:
             args = args.split(":")
         if hasattr(self, f"_rcmd_{cmd}"):
             try:
-                await getattr(self, f"_rcmd_{cmd}")(args)
+                await asyncio.ensure_future(
+                    getattr(self, f"_rcmd_{cmd}")(args))
             except:
                 if __debug__:
                     print("Error while handling command",

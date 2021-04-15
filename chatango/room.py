@@ -246,29 +246,18 @@ class Room(Connection):
         return sorted([x[1] for x in list(self._userdict.values())],
                       key=lambda z: z.name.lower())
 
-    def set_font(self, name_color=None, font_color=None, font_size=None, font_face=None):
-        if name_color:
-            self._user._styles._name_color = str(name_color)
-        if font_color:
-            self._user._styles._font_color = str(font_color)
-        if font_size:
-            self._user._styles._font_size = int(font_size)
-        if font_face:
-            self._user._styles._font_face = int(font_face)
+##
+# Hided functions
+##
 
-    async def enable_bg(self):
-        await self.set_bg_mode(1)
+    async def _raw_unban(self, name, ip, unid):
+        await self._send_command("removeblock", unid, ip, name)
 
-    async def disable_bg(self):
-        await self.set_bg_mode(0)
-
-    def get_session_list(self, mode=0, memory=0):  # TODO
-        if mode < 2:
-            return [(x.name if mode else x, len(x.getSessionIds(self))) for x in
-                    self._get_user_list(1, memory)]
-        else:
-            return [(x.showname, len(x.getSessionIds(self))) for x in
-                    self._get_user_list(1, memory)]
+    def _add_history(self, msg):
+        if len(self._history) == 2900:
+            rest = self._history.popleft()
+            rest.detach()
+        self._history.append(msg)
 
     def _get_user_list(self, unique=1, memory=0, anons=False):
         ul = []
@@ -282,10 +271,86 @@ class Room(Connection):
             ul = set(ul)
         return sorted(list(ul), key=lambda x: x.name.lower())
 
+    async def _raw_ban(self, msgid, ip, name):
+        """
+        Ban user with received data
+        @param msgid: Message id
+        @param ip: user IP
+        @param name: chatango user name
+        @return: bool
+        """
+        await self._send_command("block", msgid, ip, name)
+
+    async def _reload(self):
+        if self._usercount <= 1000:
+            await self._send_command("g_participants:start")
+        else:
+            await self._send_command("gparticipants:start")
+        await self._send_command("getpremium", "l")
+        await self._send_command('getannouncement')
+        await self._send_command("getbannedwords")
+        await self._send_command("getratelimit")
+        await self.request_banlist()
+        await self.request_unbanlist()
+        if self.user.ispremium:
+            await self._style_init(self._user)
+
+    async def _style_init(self, user):
+        if not user.isanon:
+            await user.get_profile()
+        else:
+            self.set_font(
+                name_color="000000",
+                font_color="000000",
+                font_size=11,
+                font_face=1)
+                
+    async def _disconnect(self):
+        self._connected = False
+        for x in self.userlist:
+            x.removeSessionId(self, 0)
+        await self.client._call_event("disconnect", self)
+
+    async def _login(self, u=None, p=None):
+        try:
+            self._connection = await self.client.aiohttp_session.ws_connect(
+                f"ws://{self.server}:8080/", origin="http://st.chatango.com")
+            await self._send_command("bauth", self.name, self._uid, u or "", p or "")
+        except aiohttp.client_exceptions.ClientConnectorError:
+            self._connection = object()
+            self._connection.closed = True
+            if int(self.client.debug) > 0:
+                print(f"[debug] Server {self.server} is down!")
+
+    async def enable_bg(self):
+        await self.set_bg_mode(1)
+
+    async def disable_bg(self):
+        await self.set_bg_mode(0)
+
+
+    def set_font(self, name_color=None, font_color=None, font_size=None, font_face=None):
+        if name_color:
+            self._user._styles._name_color = str(name_color)
+        if font_color:
+            self._user._styles._font_color = str(font_color)
+        if font_size:
+            self._user._styles._font_size = int(font_size)
+        if font_face:
+            self._user._styles._font_face = int(font_face)
+
+    def get_session_list(self, mode=0, memory=0):  # TODO
+        if mode < 2:
+            return [(x.name if mode else x, len(x.getSessionIds(self))) for x in
+                    self._get_user_list(1, memory)]
+        else:
+            return [(x.showname, len(x.getSessionIds(self))) for x in
+                    self._get_user_list(1, memory)]
+
     def get_level(self, user):
         if isinstance(user, str):
-            user = User(user)
-        if user == self._owner:
+            user = User(user.strip())
+        if user.name == str(self.owner.name).strip():
             return 3
         if user in self._mods:
             if self._mods.get(user).isadmin:
@@ -335,15 +400,6 @@ class Room(Connection):
                 return x
         return None
 
-    async def _raw_unban(self, name, ip, unid):
-        await self._send_command("removeblock", unid, ip, name)
-
-    def _add_history(self, msg):
-        if len(self._history) == 2900:
-            rest = self._history.popleft()
-            rest.detach()
-        self._history.append(msg)
-
     async def unban_user(self, user):
         rec = self.ban_record(user)
         print("rec", rec)
@@ -360,15 +416,6 @@ class Room(Connection):
             return True
         return False
 
-    async def _raw_ban(self, msgid, ip, name):
-        """
-        Ban user with received data
-        @param msgid: Message id
-        @param ip: user IP
-        @param name: chatango user name
-        @return: bool
-        """
-        await self._send_command("block", msgid, ip, name)
 
     async def ban_user(self, user: str) -> bool:
         """
@@ -400,7 +447,7 @@ class Room(Connection):
         return False
 
     async def delete_message(self, message):
-        if self.get_level(self.user) > 0 and message.id: # for mod
+        if self.get_level(self.user) > 0 and message.id: # mod
             await self._send_command("delmsg", message.id)
             return True
         return False
@@ -423,14 +470,6 @@ class Room(Connection):
                                  str(int(time.time() + self._correctiontime)), 'next',
                                  '500', 'anons', '1')
 
-    async def _rcmd_annc(self, args):
-        self._announcement[0] = int(args[0])
-        anc = ':'.join(args[2:])
-        if anc != self._announcement[2]:
-            self._announcement[2] = anc
-            await self.client._call_event('AnnouncementUpdate', args[0] != '0')
-        await self.client._call_event('Announcement', anc)
-
     async def set_banned_words(self, part='', whole=''):
         """
         Actualiza las palabras baneadas para que coincidan con las recibidas
@@ -445,20 +484,6 @@ class Room(Connection):
             return True
         return False
 
-    async def _reload(self):
-        if self._usercount <= 1000:
-            await self._send_command("g_participants:start")
-        else:
-            await self._send_command("gparticipants:start")
-        await self._send_command("getpremium", "l")
-        await self._send_command('getannouncement')
-        await self._send_command("getbannedwords")
-        await self._send_command("getratelimit")
-        await self.request_banlist()
-        await self.request_unbanlist()
-        if self.user.ispremium:
-            await self._style_init(self._user)
-
     async def set_bg_mode(self, mode):
         self._bgmode = mode
         if self.connected:
@@ -466,22 +491,6 @@ class Room(Connection):
             if self.user.ispremium:
                 await self._send_command('msgbg', str(self._bgmode))
 
-    async def _disconnect(self):
-        self._connected = False
-        for x in self.userlist:
-            x.removeSessionId(self, 0)
-        await self.client._call_event("disconnect", self)
-
-    async def _login(self, u=None, p=None):
-        try:
-            self._connection = await self.client.aiohttp_session.ws_connect(
-                f"ws://{self.server}:8080/", origin="http://st.chatango.com")
-            await self._send_command("bauth", self.name, self._uid, u or "", p or "")
-        except aiohttp.client_exceptions.ClientConnectorError:
-            self._connection = object()
-            self._connection.closed = True
-            if int(self.client.debug) > 0:
-                print(f"[debug] Server {self.server} is down!")
 
     async def login(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         if self.client._using_accounts != None and not password:
@@ -492,11 +501,6 @@ class Room(Connection):
                     break
         self._user = User(user_name, isanon=False if password == "" else True)
         await self._send_command("blogin", user_name or "", password or "")
-
-    async def _rcmd_pwdok(self, args):
-        self._user._isanon = False
-        await self._send_command("getpremium", "l")
-        await self._style_init(self._user)
 
     async def logout(self):
         await self._send_command("blogout")
@@ -514,6 +518,10 @@ class Room(Connection):
             for msg in message_cut(msg, self._maxlen):
                 message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
                 await self._send_command("bm", _id_gen(), message_flags, message)
+
+##
+# Handler events
+##
 
     async def _rcmd_ok(self, args):  # TODO
         self._connected = True
@@ -542,16 +550,18 @@ class Room(Connection):
                     power)) & AdminFlags != 0
         await self.client._call_event("connect", self)
 
-    async def _style_init(self, user):
-        if not user.isanon:
-            await user.get_profile()
-        else:
-            self.set_font(
-                name_color="000000",
-                font_color="000000",
-                font_size=11,
-                font_face=1
-            )
+    async def _rcmd_annc(self, args):
+        self._announcement[0] = int(args[0])
+        anc = ':'.join(args[2:])
+        if anc != self._announcement[2]:
+            self._announcement[2] = anc
+            await self.client._call_event('AnnouncementUpdate', args[0] != '0')
+        await self.client._call_event('Announcement', anc)
+
+    async def _rcmd_pwdok(self, args):
+        self._user._isanon = False
+        await self._send_command("getpremium", "l")
+        await self._style_init(self._user)
 
     async def _rcmd_inited(self, args):
         await self._reload()
