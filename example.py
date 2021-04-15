@@ -5,10 +5,17 @@ import asyncio
 import time
 import typing
 
+class config:
+    rooms = ['examplegroup']
+    botuser = ['ExampleBot', ''] # password
+
 class MyBot(chatango.Client):
     async def on_init(self):
         print("Bot initialized")
-        await self.join("examplegroup")
+        
+    async def on_start(self): # room join queue
+        for room in config.rooms:
+            self.set_timeout(1, self.join, room)
 
     async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
         print(f"[{room.type}] Connected to", room)
@@ -46,7 +53,7 @@ class MyBot(chatango.Client):
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     bot = MyBot()
-    bot.default_user("ExampleBot", "") # easy_start
+    bot.default_user(config.botuser[0], config.botuser[1]) # easy_start
 #     or_accounts = [["user1","passwd1"], ["user2","passwd2"]]
 #     bot.default_user(accounts=or_accounts, pm=False) #True if passwd was input.
     ListBots = [bot.start()] # Multiple instances 
