@@ -1,6 +1,5 @@
 import asyncio
 import aiohttp
-import inspect
 import typing
 import time
 import re
@@ -146,7 +145,7 @@ class Client:
             await getattr(self, attr)(*args, **kwargs)
 
     def event(self, func, name=None):
-        assert inspect.iscoroutinefunction(func)
+        assert asyncio.iscoroutinefunction(func)
         if name is None:
             event_name = func.__name__
         else:
