@@ -20,7 +20,7 @@ class Client:
         self.loop = self.aiohttp_session.loop
         self.pm = None
         self.user = None
-        self.debug = 3 # debug
+        self.debug = 0 # debug
 
         self._running = False
         self.silent = 2
