@@ -106,8 +106,9 @@ class Connection:
                         if r != "":
                             await self._do_process(r)
             else:
-                self._recv.close()
                 print(f"Disconnected from {self}")
+                self._connection.close()
+                break
         raise ConnectionAbortedError
 
     async def _do_process(self, recv):
