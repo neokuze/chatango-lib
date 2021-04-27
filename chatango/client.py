@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+import inspect
 import typing
 import time
 import re
@@ -20,7 +21,7 @@ class Client:
         self.loop = self.aiohttp_session.loop
         self.pm = None
         self.user = None
-        self.debug = 0 # debug
+        self.debug = 1 # debug
 
         self._running = False
         self.silent = 2
@@ -145,7 +146,7 @@ class Client:
             await getattr(self, attr)(*args, **kwargs)
 
     def event(self, func, name=None):
-        assert asyncio.iscoroutinefunction(func)
+        assert inspect.iscoroutinefunction(func)
         if name is None:
             event_name = func.__name__
         else:
@@ -174,8 +175,9 @@ class Client:
         return task
 
     async def _dead_rooms(self):  # Reconnect
-        x = 1  # minutes
+        x = 5  # minutes
         await asyncio.sleep(60 * x)
+        print([(x.name, x._connections.closed) for x in self.rooms])
         try:
             for room in self.rooms:
                 if hasattr(room, '_connection') and room._connection.closed == True:

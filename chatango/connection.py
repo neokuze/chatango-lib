@@ -29,6 +29,7 @@ class Connection:
             raise AlreadyConnectedError(getattr(self, "name", None), self)
         self._recv, self._connection = await asyncio.open_connection(
             f"{self.server}", self.port)
+        self._connected = True
         self._recv_task = asyncio.create_task(self.s_do_recv())
         self._ping_task = asyncio.create_task(self._do_ping())
         await self._login(user_name, password)
@@ -40,6 +41,7 @@ class Connection:
             raise AlreadyConnectedError(getattr(self, "name", None), self)
         self._first_command = True
         await self._login(u=user_name, p=password)
+        self._connected = True
         self._recv_task = asyncio.create_task(self.ws_do_recv())
         self._ping_task = asyncio.create_task(self._do_ping())
 
@@ -48,9 +50,13 @@ class Connection:
         return self._connected
 
     async def cancel(self):
+        self._connected = False
         self._recv_task.cancel()
         self._ping_task.cancel()
-        await self._connection.close()
+        if hasattr(self._connection, "is_closing"):
+            self._connection.close()
+        else:
+            await self._connection.close()
 
     async def _send_command(self, *args, terminator="\r\n\0"):
         message = ":".join(args) + terminator
@@ -71,11 +77,12 @@ class Connection:
         # ping is an empty message
         await self._send_command("\r\n", terminator="\x00")
         await self.client._call_event("ping", self)
-        self._ping_task = asyncio.create_task(self._do_ping())
+        if self.connected:
+            self._ping_task = asyncio.create_task(self._do_ping())
 
     async def ws_do_recv(self):
         count = 0
-        while True:
+        while self.connected:
             try:
                 message = await self._connection.receive()
                 if message.type is aiohttp.WSMsgType.TEXT:
@@ -89,10 +96,10 @@ class Connection:
                     print(f"[{self.name} :Connection Reset by Host]", error)
                 if count > 3:
                     await self.cancel()
-                
+  
 
     async def s_do_recv(self):
-        while True:
+        while self.connected:
             # TODO if the rcv is higher than bytes, may is cutted
             rcv = await self._recv.read(2048)
             await asyncio.sleep(0.0001)
@@ -107,8 +114,7 @@ class Connection:
                             await self._do_process(r)
             else:
                 print(f"Disconnected from {self}")
-                self._connection.close()
-                break
+                await self.cancel()
         raise ConnectionAbortedError
 
     async def _do_process(self, recv):
@@ -125,6 +131,9 @@ class Connection:
             try:
                 await asyncio.ensure_future(
                     getattr(self, f"_rcmd_{cmd}")(args))
+            except asyncio.exceptions.CancelledError:
+                self._connected = False
+                return
             except:
                 if __debug__:
                     print("Error while handling command",

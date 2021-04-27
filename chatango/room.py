@@ -62,7 +62,7 @@ class RoomFlags(enum.IntFlag):
     NO_LINKS_CHATANGO = 1 << 9
     NO_BROADCAST_MSG_WITH_BW = 1 << 10
     RATE_LIMIT_REGIMEON = 1 << 11
-    UNKNOWN = 1 << 12
+    UPDATED = 1 << 12
     CHANNELS_DISABLED = 1 << 13
     NLP_SINGLEMSG = 1 << 14
     NLP_MSGQUEUE = 1 << 15
