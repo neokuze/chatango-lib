@@ -131,7 +131,7 @@ class Connection:
             try:
                 await asyncio.ensure_future(
                     getattr(self, f"_rcmd_{cmd}")(args))
-            except asyncio.exceptions.CancelledError:
+            except (ConnectionResetError, asyncio.exceptions.CancelledError):
                 self._connected = False
                 return
             except:
