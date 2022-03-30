@@ -10,7 +10,7 @@ import typing
 import asyncio
 
 from .user import User, Friend
-from .message import _process_pm, format_videos, message_cut
+from .message import _process_pm, message_cut
 
 
 # TODO Unhandled received command kickingoff
@@ -145,14 +145,10 @@ class PM(Connection):
     async def send_message(self, target, message: str, use_html: bool = False):
         if isinstance(target, User):
             target = target.name
-        if self._silent > time.time():
+        if self._silent > time.time(): # manual rate limit
             await self.client._call_event("pm_silent", message)
         else:
             if len(message) > 0:
-                message = message  # format_videos(self.user, message)
-                nc, fs, fc, ff = (
-                    f"<n{self.user.styles.name_color}/>", f"{self.user.styles.font_size}",
-                    f"{self.user.styles.font_color}", f"{self.user.styles.font_face}")
                 for msg in message_cut(message, self._maxlen, self, use_html):
                     await self._send_command("msg", target.lower(), msg)
 
