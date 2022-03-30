@@ -151,6 +151,7 @@ class Room(Connection):
         self._usercount = 0
         self._del_dict = dict()
         self._maxlen = 2700
+        self._BigMessageCut=False
         self._history = deque(maxlen=self._maxlen+300)
         self._bgmode = 0
         self._reconnect = True
@@ -514,10 +515,10 @@ class Room(Connection):
                 msg = html.escape(msg, quote=False)
             else:
                 msg = html.unescape(msg)
-            msg = msg.replace('\n', '\r').replace('~', '&#126;')
-            for msg in message_cut(msg, self._maxlen):
-                message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
-                await self._send_command("bm", _id_gen(), message_flags, message)
+            _msg = msg.replace('\n', '\r').replace('~', '&#126;')
+            for _message in message_cut(str(_msg), self._maxlen, self,
+                                           use_html):
+                await self._send_command("bm", _id_gen(), message_flags, _message)
 
 ##
 # Handler events

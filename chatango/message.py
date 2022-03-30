@@ -4,7 +4,7 @@ import string
 import time
 import enum
 
-from .utils import gen_uid, get_anon_name, _clean_message, _parseFont, Styles
+from .utils import gen_uid, get_anon_name, _clean_message, _parseFont, _fontFormat, Styles
 from .user import User
 
 
@@ -134,7 +134,7 @@ async def _process(room, args):
     """Process message"""
     _time = float(args[0]) - room._correctiontime
     name, tname, puid, unid, msgid, ip, flags = args[1:8]
-    body = ":".join(args[9:])
+    rawmsg = ":".join(args[9:])
     msg = RoomBase()
     msg._room = room
     msg._time = float(_time)
@@ -143,10 +143,9 @@ async def _process(room, args):
     msg._id = msgid
     msg._unid = unid
     msg._ip = ip
-    msg._raw = body
-    body, n, f = _clean_message(body)
-    strip_body = " ".join(body.split(" ")[:-1]) + " " + body.split(" ")[-1].replace("\n", "")
-    msg._body = strip_body.strip()
+    msg._raw = rawmsg
+    body, n, f = _clean_message(rawmsg)
+    msg._body = body
     name_color = None
     isanon = False
     if name == "":
@@ -167,7 +166,7 @@ async def _process(room, args):
     msg._user = User(name, ip=ip, isanon=isanon)
     msg._user._styles._name_color = name_color
     msg._styles = msg._user._styles
-    msg._styles._font_size, msg._styles._font_color, msg._styles._font_face = _parseFont(f.strip())
+    msg._styles._font_size, msg._styles._font_color, msg._styles._font_face = _parseFont(f)
     if msg._styles._font_size == None: msg._styles._font_size=11
     msg._flags = MessageFlags(int(flags))
     if MessageFlags.BG_ON in msg.flags:
@@ -193,12 +192,13 @@ async def _process_pm(room, args):
     rawmsg = ':'.join(args[5:])
     body, n, f = _clean_message(rawmsg, pm=True)
     name_color = n or None
-    font_size, font_color, font_face = _parseFont(f)
+    font_size, font_color, font_face = _parseFont(f, pm=True)
     msg = PMBase()
     msg._room = room
     msg._user = user
     msg._time = mtime
     msg._body = body
+    msg._rawmsg = rawmsg
     msg._styles = msg._user._styles
     msg._styles._name_color = name_color
     msg._styles._font_size = font_size
@@ -207,11 +207,92 @@ async def _process_pm(room, args):
     msg._channel = channel(msg._room, msg._user)
     return msg
 
-def message_cut(message, lenth):
-    result = []
-    for o in [message[x:x + lenth] for x in range(0, len(message), lenth)]:
-        result.append(o)
-    return result 
+def message_cut(msg: str, lenth, room, _html: False):
+    # TODO ajustar envío de texto con tabulaciones
+    if len(msg) + msg.count(' ') * 5 > lenth:
+        if room._BigMessageCut:
+            msg = msg[:lenth]
+        else:
+            # partir el mensaje en pedacitos y formatearlos por separado
+            espacios = msg.count(' ') + msg.count('\t')
+            particion = lenth
+            conteo = 0
+            while espacios * 6 + particion > lenth:
+                particion = len(
+                    msg[:particion - espacios])  # Recorrido máximo 5
+                espacios = msg[:particion].count(' ') + msg[
+                                                        :particion].count(
+                    '\t')
+                conteo += 1
+            return message_cut(msg[:particion], lenth, room,
+                                        _html) + message_cut(
+                msg[particion:], lenth, room,
+                                        _html)
+    fc = room.user.styles.font_color.lower()
+    nc = room.user.styles.name_color
+    if not _html:
+        msg = html.escape(msg, quote=False)
+
+    msg = msg.replace('\n', '\r').replace('~', '&#126;')
+    for x in set(re.findall('<[biu]>|</[biu]>', msg)):
+        msg = msg.replace(x, x.upper()).replace(x, x.upper())
+    if room.name == '<PM>':
+        formt = '<n{}/><m v="1"><g x{:0>2.2}s{}="{}">{}</g></m>'
+        fc = '{:X}{:X}{:X}'.format(*tuple(
+            round(int(fc[i:i + 2], 16) / 17) for i in
+            (0, 2, 4))).lower() if len(fc) == 6 else fc[:3].lower()
+        msg = msg.replace('&nbsp;', ' ')  # fix
+        # msg = _videoImagePMFormat(msg)
+        if not _html:
+            msg = _fontFormat(msg)
+        msg = convertPM(msg)  # TODO No ha sido completamente probado
+    else:  # Room
+        if not _html:
+            # Reemplazar espacios múltiples
+            # TODO mejorar sin alterar enlaces
+            msg = msg.replace('\t', ' %s ' % ('&nbsp;' * 2))
+            msg = msg.replace('   ', ' %s ''' % ('&nbsp;'))
+            msg = msg.replace('&nbsp;  ', '&nbsp;&nbsp; ')
+            msg = msg.replace('&nbsp;  ', '&nbsp;&nbsp; ')
+            msg = msg.replace('  ', ' &#8203; ')
+        formt = '<n{}/><f x{:0>2.2}{}="{}">{}'
+        if not _html:
+            msg = _fontFormat(msg)
+        if room.user.isanon:
+            # El color del nombre es el tiempo de conexión y no hay fuente
+            nc = str(room._connectiontime).split('.')[0][-4:]
+            formt = '<n{0}/>{4}'
+
+    if type(msg) != list:
+        msg = [msg]
+    return [
+        formt.format(nc, str(room.user.styles.font_size), fc, room.user.styles.font_face,
+                        unimsg) for unimsg in msg]
+
+def convertPM(msg: str) -> str:
+    """
+    Convertir las fuentes de un mensaje normal en fuentes para el PM
+    Util para usar múltiples fuentes
+    @param msg: Mensaje con fuentes incrustadas
+    @return: Mensaje con etiquetas f convertidas a g
+    """
+    pattern = re.compile(r'<f x(\d{1,2})?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})=(.*?)>')
+
+    def repl(match):
+        s, c, f = match.groups()
+        if s is None:
+            s = 11
+        else:
+            s = int(s)
+        if len(c) == 6:
+            c = '{:X}{:X}{:X}'.format(
+                round(int(c[0:2], 16) / 17),  # r
+                round(int(c[2:4], 16) / 17),  # g
+                round(int(c[4:6], 16) / 17)  # b
+            )
+        return '</g><g x{:02}s{}="{}">'.format(s, c, f[1:-1])
+
+    return pattern.sub(repl, msg)
 
 def mentions(body, room):
     t = []
@@ -234,12 +315,10 @@ class channel:
                 x[0] != '_']
 
     async def send(self, message, use_html=False):
-        messages = message_cut(message, self.room._maxlen)
-        for message in messages:
-            if self.is_pm:
-                await self.room.client.pm.send_message(self.user.name, message, use_html=use_html)
-            else:
-                await self.room.send_message(message, use_html=use_html)
+        if self.is_pm:
+            await self.room.client.pm.send_message(self.user.name, message, use_html=use_html)
+        else:
+            await self.room.send_message(message, use_html=use_html)
 
     async def send_pm(self, message):
         self.is_pm = True

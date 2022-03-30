@@ -162,9 +162,6 @@ def _clean_message(msg: str, pm: bool = False) -> [str, str, str]:  # TODO
     tag = pm and 'g' or 'f'
     f = re.search("<" + tag + "(.*?)>", msg)
     msg = re.sub("<" + tag + ".*?>" + '|"<i s=sm://(.*)"', "", msg)
-
-    # wink = '<i s="sm://wink" w="14.52" h="14.52"/>'
-
     if n:
         n = n.group(1)
     if f:
@@ -223,8 +220,27 @@ def get_anon_name(tssid: str, puid: str) -> str:
         __reg1 += 1
     return 'anon' + __reg5.zfill(4)
 
+def _fontFormat(text):
+    # TODO check
+    """Converts */_ into whattsap like formats"""
+    formats = {'/': 'I', '\*': 'B', '_': 'U'}
+    for f in formats:
+        f1, f2 = set(formats.keys()) - {f}
+        # find = ' <?[BUI]?>?[{0}{1}]?{2}(.+?[\S]){2}'.format(f1, f2, f+'{1}')
+        find = ' <?[BUI]?>?[{0}{1}]?{2}(.+?[\S]?[{2}]?){2}[{0}{1}]?[\s]'.format(f1, f2, f)
+        for x in re.findall(find, ' ' + text + ' '):
+            original = f[-1] + x + f[-1]
+            cambio = '<' + formats[f] + '>' + x + '</' + formats[f] + '>'
+            text = text.replace(original, cambio)
+    return text
 
 def _parseFont(f: str, pm=False) -> (str, str, str):
+    """
+    Lee el contendido de un etiqueta f y regresa
+    tamaño color y fuente (en ese orden)
+    @param f: El texto con la etiqueta f incrustada
+    @return: Tamaño, Color, Fuente
+    """
     if pm:
         regex = r'x(\d{1,2})?s([a-fA-F0-9]{6}|[a-fA-F0-9]{3})="|\'(.*?)"|\''
     else:

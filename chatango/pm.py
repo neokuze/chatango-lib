@@ -120,16 +120,19 @@ class PM(Connection):
         self._history.append(args)
 
     async def addfriend(self, user_name):
-        user = user_name
-        friend = self.get_friend(user)
-        if not friend:
+        if user_name not in self.friends:
             await self._send_command("wladd", user_name.lower())
+            await self._send_command("track", user_name.lower())
+            return True
+        return False
 
     async def unfriend(self, user_name):
         user = user_name
         friend = self.get_friend(user)
         if friend:
             await self._send_command("wldelete", friend.name)
+            return True
+        return False
 
     async def _login(self, user_name=str, password=str):
         if self.client._using_accounts:
@@ -150,8 +153,7 @@ class PM(Connection):
                 nc, fs, fc, ff = (
                     f"<n{self.user.styles.name_color}/>", f"{self.user.styles.font_size}",
                     f"{self.user.styles.font_color}", f"{self.user.styles.font_face}")
-                for msg in message_cut(message, self._maxlen):
-                    msg = f"{nc}<m v=\"1\"><g xs0=\"0\"><g x{fs}s{fc}=\"{ff}\">{msg}</g></g></m>"
+                for msg in message_cut(message, self._maxlen, self, use_html):
                     await self._send_command("msg", target.lower(), msg)
 
     async def _rcmd_seller_name(self, args):
@@ -265,14 +267,13 @@ class PM(Connection):
     async def _rcmd_wladd(self, args):
         if args[1] == "invalid":
             return
-        
-        friend = self._friends[args[0]] if args[0] in self.friends else None
-        if not friend:
-            friend = Friend(User(), self)
-            self._friends[args[0]] = friend
+        user = args[0]
+        print(user)
+        if user not in self.friends:
+            friend = Friend(User(user), self)
+            self._friends[user] = friend
             await self.client._call_event("pm_contact_addfriend", friend)
-            await self._send_command("wl")
-            await self._send_command("track", args[0].lower())
+            await self._send_command("wladd", friend.user.name)
 
     async def _rcmd_wldelete(self, args):
         if args[1] == "deleted":
