@@ -250,6 +250,19 @@ def _parseFont(f: str, pm=False) -> (str, str, str):
         return None, None, None
     return match.groups()
 
+def _videoImagePMFormat(text):
+    """Returns text with formatted video and image for PM sending"""
+    for x in re.findall('(http[s]?://[^\s]+outube.com/watch\?v=([^\s]+))', text):
+        original = x[0]
+        cambio = '<i s="vid://yt:%s" w="126" h="96"/>' % x[1]
+        text = text.replace(original, cambio)
+    for x in re.findall('(http[s]?://[\S]+outu.be/([^\s]+))', text):
+        original = x[0]
+        cambio = '<i s="vid://yt:%s" w="126" h="96"/>' % x[1]
+        text = text.replace(original, cambio)
+    for x in re.findall("http[s]?://[\S]+?.jpg", text):
+        text = text.replace(x, '<i s="%s" w="70.45" h="125"/>' % x)
+    return text
 
 class Styles:
     def __init__(self, name_color=None, font_color=None, font_face=None, font_size=None, use_background=None):
