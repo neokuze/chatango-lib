@@ -265,9 +265,7 @@ class PM(Connection):
     async def _rcmd_wladd(self, args):
         if args[1] == "invalid":
             return
-        nm = args[0]
-        if type(nm) not type(str):
-            nm.name
+        
         friend = self._friends[args[0]] if args[0] in self.friends else None
         if not friend:
             friend = Friend(User(), self)
