@@ -145,6 +145,8 @@ async def _process(room, args):
     msg._ip = ip
     msg._raw = rawmsg
     body, n, f = _clean_message(rawmsg)
+    if body[::-1][:1] == "\n":
+        body = body[:-1]
     msg._body = body
     name_color = None
     isanon = False
