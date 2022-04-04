@@ -264,7 +264,7 @@ class PM(Connection):
         if args[1] == "invalid":
             return
         user = args[0]
-        print(user)
+
         if user not in self.friends:
             friend = Friend(User(user), self)
             self._friends[user] = friend
