@@ -70,13 +70,6 @@ class PM(Socket):
     def friends(self):
         return list(self._friends.keys())
 
-
-    async def enable_background(self):
-        await self._send_command("msgbg", "1")
-
-    async def disable_background(self):
-        await self._send_command("msgbg", "0")
-
     async def block(self, user):  # TODO
         """block a person"""
         if isinstance(user, User):
@@ -107,6 +100,11 @@ class PM(Socket):
             self._history = self._history[1:]
         self._history.append(args)
 
+    async def enable_bg(self):
+        await self._send_command("msgbg", "1")
+
+    async def disable_bg(self):
+        await self._send_command("msgbg", "0")
 
     async def addfriend(self, user_name):
         user = user_name
@@ -125,6 +123,7 @@ class PM(Socket):
         if self.__token:
             await self._send_command("tlogin", self.__token, "2", self._uid)
             self._connected = True
+            self._user = User(str(user_name))
     
     async def send_message(self, target, message: str, use_html: bool = False):
         if isinstance(target, User):
@@ -143,7 +142,6 @@ class PM(Socket):
 
     async def _rcmd_seller_name(self, args):
         await self.client._call_event("connect", self)
-        self._user = User(args[0])
 
     async def _rcmd_pong(self, args):
         await self.client._call_event("pong", self)
@@ -154,7 +152,7 @@ class PM(Socket):
         else:
             self._premium = False
         if self.premium:
-            await self.enable_background()
+            await self.enable_bg()
 
     async def _rcmd_time(self, args):
         self._connectiontime = float(args[0])

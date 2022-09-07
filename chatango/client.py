@@ -99,7 +99,7 @@ class Client:
 
     async def pm_start(self, user=None, passwd=None):
         self.pm = PM(self)
-        await self.pm.sock_connect(user or self._default_user_name,
+        await self.pm.connect(user or self._default_user_name,
             passwd or self._default_password)
 
     @property
