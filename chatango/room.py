@@ -180,11 +180,12 @@ class Room(Connection):
 
     @property
     def change_reconnect(self):
+        before = self.reconnect
         if self.reconnect == True:
             self._reconnect = False
         else:
             self._reconnect = True
-        return self.reconnect
+        return "<before: {}, now: {}>".format(before, self.reconnect)
 
     @property
     def reconnect(self):

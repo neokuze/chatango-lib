@@ -18,7 +18,7 @@ async def on_request_exception(session, context, params):
     logging.getLogger('aiohttp.client').debug(f'on request exception: <{params}>')
     
 def trace():
-    #logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
     trace_config = aiohttp.TraceConfig()
     trace_config.on_request_exception.append(on_request_exception)
     return trace_config

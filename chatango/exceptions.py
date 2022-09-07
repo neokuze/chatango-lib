@@ -15,7 +15,7 @@ class AlreadyConnectedError(BaseRoomError):
         self.room = room
 
     def check(self):    
-        return (self.room_name, self.room.connected, self.room.reconnect)
+        return (self.room.connected, self.room.reconnect)
 
 class NotConnectedError(BaseRoomError):
     room_name: str

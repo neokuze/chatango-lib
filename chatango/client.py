@@ -18,7 +18,7 @@ class Client:
             aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
 
         self.aiohttp_session = aiohttp_session
-        self.loop = self.aiohttp_session.loop
+        self.loop = asyncio.AbstractEventLoop
         self.pm = None
         self.user = None
         self.debug = 0 # debug
@@ -55,17 +55,18 @@ class Client:
         if not expr.match(room_name):
             return None
         if room_name in self._rooms:
-            roomname, isconnected, canreconnect = AlreadyConnectedError(
+            isconnected, canreconnect = AlreadyConnectedError(
                 room_name, self._rooms[room_name]).check()
             if not isconnected and canreconnect:
-                await self.leave(roomname)
-                self.check_rooms(roomname)
+                await self.leave(room_name, True)
+                self.check_rooms(room_name)
+                await asyncio.sleep(0.2)
         room = Room(self, room_name)
         _accs = [self._default_user_name if not anon else "",
                  self._default_password if not anon else ""]
         await asyncio.wait_for(room.connect(*_accs), 6.0)
-
-    async def leave(self, room_name: str):
+        
+    async def leave(self, room_name: str, reconnect: bool(False)):
         room_name = room_name.lower()
         if room_name not in self._rooms:
             return f"{False if NotConnectedError(room_name) else True}"
@@ -75,6 +76,9 @@ class Client:
             if room_name in self._rooms:
                 del self._rooms[room_name]
             await self._call_event("disconnect", room_name)
+            if not reconnect:
+                if self._rooms[room_name].reconnect:
+                    self.set_timeout(1,self.join, room_name)
             return True
 
     async def start(self, user=None, passwd=None, pm=None):
@@ -83,6 +87,15 @@ class Client:
         if pm or self._default_pm == True:
             await self.pm_start(user, passwd)
         await self._call_event("start")
+        self._reconnection = asyncio.create_task(self._while_rooms())
+
+    async def _while_rooms(self):
+        while True:
+            for room in self._rooms:
+                isconnected, canreconnect = AlreadyConnectedError(room, self._rooms[room]).check()
+                if canreconnect and not isconnected:
+                    await self.leave(room, True)
+            if not self._running: break
 
     async def pm_start(self, user=None, passwd=None):
         self.pm = PM(self)

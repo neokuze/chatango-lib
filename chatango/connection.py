@@ -40,11 +40,12 @@ class Connection:
             await self._connection.send_str(message)
 
     async def _do_ping(self):
-        await asyncio.sleep(20)
-        # ping is an empty message
-        await self._send_command("\r\n", terminator="\x00")
-        await self.client._call_event("ping", self)
-        self._ping_task = asyncio.create_task(self._do_ping())
+        while True:
+            await asyncio.sleep(20)
+            # ping is an empty message
+            await self._send_command("\r\n", terminator="\x00")
+            await self.client._call_event("ping", self)
+            if not self.connected: break        
 
     async def _do_recv(self):
         while True:
@@ -70,6 +71,7 @@ class Connection:
                         traceback.print_exc(file=sys.stderr)
             elif int(self.client.debug) == 1:
                 print(self, "Unhandled received command", cmd, args, file=sys.stderr)
+            if not self.connected: break  
         
 class Socket: #resolver for socket client
     def __init__(self, client):
@@ -114,11 +116,12 @@ class Socket: #resolver for socket client
         await self._connection.drain()
 
     async def _do_ping(self):
-        await asyncio.sleep(20)
-        # ping is an empty message
-        await self._send_command("\r\n", terminator="\x00")
-        await self.client._call_event("ping", self)
-        self._ping_task = asyncio.create_task(self._do_ping())
+        while True:
+            await asyncio.sleep(20)
+            # ping is an empty message
+            await self._send_command("\r\n", terminator="\x00")
+            await self.client._call_event("ping", self)
+            if not self.connected: break  
 
     async def _do_recv(self):
         while True:
@@ -136,6 +139,7 @@ class Socket: #resolver for socket client
             else:
                 self._recv.close()
                 print(f"Disconnected from {self}")
+            if not self.connected: break  
         raise ConnectionAbortedError
 
     async def _do_process(self, recv):
