@@ -2,17 +2,12 @@
 Module for user related stuff
 """
 import enum
-import aiohttp
-import asyncio
-import json
-import urllib
-import re
-import time
-import html
+import aiohttp, asyncio
+import json, urllib
+import re, time, html
 import datetime
 from collections import deque
-from .utils import Styles, _convert_dict
-
+from .utils import Styles, make_requests
 
 class ModeratorFlags(enum.IntFlag):
     DELETED = 1 << 0
@@ -41,7 +36,7 @@ AdminFlags = (ModeratorFlags.EDIT_MODS | ModeratorFlags.EDIT_RESTRICTIONS |
               ModeratorFlags.EDIT_GROUP | ModeratorFlags.EDIT_GP_ANNC)
 
 
-class User:  # TODO a new format for users
+class User: #TODO a new format for users
     _users = {}
 
     def __new__(cls, name, **kwargs):
@@ -156,7 +151,7 @@ class User:  # TODO a new format for users
     def showname(self):
         return self._showname
 
-    @property
+    @property    
     def _links(self):
         return [["msgstyles", f"{self._ust}{self.get_user_dir}msgstyles.json"],
                 ["msgbg", f"{self._ust}{self.get_user_dir}msgbg.xml"],
@@ -181,7 +176,8 @@ class User:  # TODO a new format for users
             self._sids[room] = set()
         self._sids[room].add(sid)
 
-    def getSessionIds(self, room=None):
+
+    def getSessionIds(self, room = None):
         if room:
             return self._sids.get(room, set())
         else:
@@ -196,96 +192,57 @@ class User:  # TODO a new format for users
             if len(self._sids[room]) == 0:
                 del self._sids[room]
 
-    async def get_profile(self):
-        if self.isanon:
-            return
-        result = await self.__get_prof()
-        self._styles._bgstyle = result['msgbg']
-        self._styles._profile['about'] = result['mod1']
-        self._styles._profile['full'] = result['mod2']
-
-    def __links(self, user_dir):
-        directory = '/%s/%s/' % ('/'.join((user_dir * 2)[:2]), user_dir)
-        url = "http://ust.chatango.com/profileimg"
-        urls = [
-            ['msgstyles', f"{url}{directory}msgstyles.json"],
-            ['msgbg', f"{url}{directory}msgbg.xml"],
-            ['mod1', f"{url}{directory}mod1.xml"],
-            ['mod2', f"{url}{directory}mod2.xml"]]
-        return urls
-
-    async def __get_prof(self):
-        result = {}
-        for ph in self.__links(self.name):
-            async with aiohttp.ClientSession() as session:
-                async with session.get(ph[1]) as response:
-                    r = None
-                    _src = await response.read()
-                    try:
-                        src = str(_src, 'utf-8')
-                    except:
-                        if ph[0] == "mod2":
-                            src = dict(about=dict(), full=dict())
-                    if ph[0] == "msgstyles":
-                        jp = json.loads(src)
-                        r = self._styles = Styles(font_face=jp['fontFamily'],
-                                                  name_color=jp['nameColor'],
-                                                  font_color=jp['textColor'],
-                                                  font_size=jp['fontSize'],
-                                                  use_background=jp["usebackground"]
-                                                  )
-
-                    elif ph[0] == "msgbg":
-                        position = dict(tl='top left', tr='top right',
-                                        bl='bottom left', br='bottom right')
-                        r = dict([url.replace('"', '').split("=")
-                                  for url in re.findall('(\w+=".*?")', src)])
-                        if "fontFamily" in src: # No bg in account / maybe a bug  #TODO
-                            r = {'align': 'None', 'bgalp': 'None', 'bgc': 'None',
-                             'hasrec': 'None', 'ialp': 'None',
-                             'isvid': 'None', 'tile': 'None', 'useimg': 'None'}
-                        else:
-                            r.update({'align': position[r['align']]})
-
-                    elif ph[0] == "mod1":
-                        wtt = dict(l="location", body="body",
-                                   d="d", b="last_change", s="gender")
-                        prof = dict(age='?')
-                        for tag in list(wtt.keys()):
-                            try:
-                                if tag == "l":
-                                    if len(src.split("<l")) > 1:
-                                        r = src.split("<l")[1].split(
-                                            ">", 1)[1].split("</l>")[0]
-                                elif tag == "s":
-                                    r = src.split("<s>")[1].split('<')[0] if len(
-                                        src.split("<s>")) > 1 else '?'
-                                elif tag == "b":
-                                    r = src.split('<b>')[1].split('</b>')[0]
-                                    if r:
-                                        prof['age'] = abs(
-                                            datetime.datetime.now().year-int(r.split('-')[0]))
-                                else:
-                                    _r = re.findall(
-                                        r"((?:<{0}>)+)([^>].*?[^<])((?:</{0}>)+)".format(tag), src)
-                                    if isinstance(_r, type([])):
-                                        r = _r[0][1] if _r else ""
-                            except:
-                                pass
-                            prof[wtt[tag]] = r
-                        r = prof
-
-                    elif ph[0] == "mod2":
-                        if src and "<body>" in src:
-                            r = src.split("<body>")[1].split('</body>')[0]
-                    result[ph[0]] = r
-        return result
-
+    async def get_styles(self):
+        position = dict(tl='top left', tr='top right', bl='bottom left', br='bottom right')
+        if not self.isanon:
+            tasks = await make_requests(self._links[:2])
+            msgs = tasks["msgstyles"].result()
+            msgbg = tasks["msgbg"].result()
+            if msgbg != None:
+                bg = msgbg.replace("<?xml version=\"1.0\" ?>", "")
+                self._styles._bgstyle.update(
+                    dict([url.replace('"', '').split("=") for url in re.findall('(\w+=".*?")', bg)]))
+                self._styles._bgstyle["align"] = position[self.styles.bgstyle["align"]]
+            if msgs != None:
+                styles = json.loads(msgs)
+                self._styles._name_color, self._styles._font_face = styles["nameColor"], int(styles["fontFamily"])
+                self._styles._font_size, self._styles._font_color = int(styles["fontSize"]), styles["textColor"]
+                self._styles._use_background = int(styles["usebackground"])
+            
+    async def get_main_profile(self):
+        _parse = dict(l="location",body="body", d="d", b="last_change")
+        if not self.isanon: 
+            tasks = await make_requests(self._links[2:])
+            _items = tasks["mod1"].result()
+            if _items != None:
+                about = _items.replace("<?xml version=\"1.0\" ?>", "")
+                self._styles._profile["about"].update(
+                    {'gender': about.split("<s>")[1].split('<')[0] if len(about.split("<s>")) > 1 else '?'}
+                    )
+                for tag in list(_parse.keys()):
+                    k = _parse[tag]
+                    if tag == "l":
+                        if len(about.split("<l")) > 1:
+                            result = about.split("<l")[1].split(">",1)[1].split("</l>")[0]
+                    else:
+                        result = re.findall(r"((?:<{0}>)+)([^>].*?[^<])((?:</{0}>)+)".format(tag), about)
+                        if isinstance(result, type([])):
+                            result = result[0][1] if result else ""
+                    if tag == "b":
+                        age = abs(datetime.datetime.now().year-int(result.split("-")[0]))
+                        self._styles._profile["about"].update({'age': age})
+                    if result: self._styles._profile["about"].update({f"{k}": result})
+            try:
+                fullprof = tasks["mod2"].result()
+                if fullprof != None and str(fullprof)[:5] == "<?xml":
+                    self._styles._profile["full"] = fullprof.split("<body",1)[1].split(">",1)[1].split("</body>",1)[0]
+            except:
+                pass
 
 class Friend:
     _FRIENDS = dict()
-
-    def __init__(self, user, client=None):
+    
+    def __init__(self, user, client = None): 
         self.user = user
         self.name = user.name
         self._client = client
@@ -293,8 +250,8 @@ class Friend:
         self._status = None
         self._idle = None
         self._last_active = None
-
-    def __repr__(self):
+        
+    def  __repr__(self):
         if self.is_friend():
             return f"<Friend {self.name}>"
         return f"<User: {self.name}>"
@@ -309,24 +266,23 @@ class Friend:
         return [x for x in
                 set(list(self.__dict__.keys()) + list(dir(type(self)))) if
                 x[0] != '_']
-
-    @ property
+    @property
     def showname(self):
         return self.user.showname
 
-    @ property
+    @property
     def client(self):
         return self._client
 
-    @ property
+    @property
     def status(self):
         return self._status
 
-    @ property
+    @property
     def last_active(self):
         return self._last_active
 
-    @ property
+    @property
     def idle(self):
         return self._idle
 
@@ -335,7 +291,7 @@ class Friend:
             if self.name in self.client.friends:
                 return True
             return False
-        return None
+        return None 
 
     async def send_friend_request(self):
         """
@@ -351,26 +307,26 @@ class Friend:
         if self.is_friend() == True:
             return await self.client.unfriend(self.name)
 
-    @ property
+    @property
     def is_online(self):
         return self.status == "online"
 
-    @ property
+    @property
     def is_offline(self):
         return self.status in ["offline", "app"]
-
-    @ property
+    
+    @property
     def is_on_app(self):
         return self.status == "app"
-
+    
     async def reply(self, message):
         if self.client:
             await self.client.send_message(self.name, message)
 
-    def _check_status(self, _time=None, _idle=None, idle_time=None):  # TODO
+    def _check_status(self, _time=None, _idle=None, idle_time=None): # TODO
         if _time == None and idle_time == None:
             self.last_active = None
-            return
+            return 
         if _idle != None:
             self._idle = _idle
         if self.status == "online" and int(idle_time) >= 1:

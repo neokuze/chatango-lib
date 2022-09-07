@@ -63,8 +63,7 @@ class Client:
         room = Room(self, room_name)
         _accs = [self._default_user_name if not anon else "",
                  self._default_password if not anon else ""]
-        await room.connect(*_accs)
-        await asyncio.sleep(0.2)
+        await asyncio.wait_for(room.connect(*_accs), 6.0)
 
     async def leave(self, room_name: str):
         room_name = room_name.lower()
@@ -84,7 +83,6 @@ class Client:
         if pm or self._default_pm == True:
             await self.pm_start(user, passwd)
         await self._call_event("start")
-        self.__dead_rooms = asyncio.create_task(self._dead_rooms())
 
     async def pm_start(self, user=None, passwd=None):
         self.pm = PM(self)
@@ -174,16 +172,3 @@ class Client:
 
         return task
 
-    async def _dead_rooms(self):  # Reconnect
-        x = 5  # minutes
-        await asyncio.sleep(60 * x)
-        print([(x.name, x._connections.closed) for x in self.rooms])
-        try:
-            for room in self.rooms:
-                if hasattr(room, '_connection') and room._connection.closed == True:
-                    if room.name in self._rooms:
-                        self.set_timeout(1, self.leave, room.name)
-                        self.set_timeout(3, self.join, room.name)
-        except:
-            pass
-        self.__dead_rooms = asyncio.create_task(self._dead_rooms())
