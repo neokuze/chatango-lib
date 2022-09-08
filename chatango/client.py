@@ -76,7 +76,7 @@ class Client:
             if room_name in self._rooms:
                 del self._rooms[room_name]
             await self._call_event("disconnect", room_name)
-            if not reconnect:
+            if reconnect:
                 if self._rooms[room_name].reconnect:
                     self.set_timeout(1,self.join, room_name)
             return True
