@@ -129,7 +129,7 @@ class Client:
         self._default_pm = pm
 
     async def stop(self):
-        self._while_rooms.cancel()
+        self._reconnection.cancel()
         if self.pm._connected == True:
             await self.pm.cancel()
             print(f"Disconnected from {self.pm}")
