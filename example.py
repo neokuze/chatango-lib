@@ -7,34 +7,36 @@ import typing
 
 class config:
     prefix = ['!']
-    owner = ['theclonerx', 'neokuze']
-    rooms = ['examplegroup']
+    owners = ['theclonerx', 'neokuze']
+    rooms = ['visudo','sudoers']
     botuser = ['ExampleBot', ''] # password
 
 class MyBot(chatango.Client):
     async def on_init(self):
-        print("Bot initialized")
-        
-    async def on_start(self): # room join
+        print("[info] Bot started...")
+
+    async def on_start(self):
         if config.rooms:
             for room in config.rooms:
                 task = self.join(room)
                 await asyncio.ensure_future(task)
             await asyncio.gather(*asyncio.all_tasks() - {asyncio.current_task()})
-        else: print("config.rooms is empty")
+            print("[info] Bot has joined sucessfully all the rooms")
+        else:
+            print("[info] config.rooms is empty.")
 
     async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
-        print(f"[{room.type}] Connected to", room)
+        print("[info] Connected to {}".format(repr(room)))
        
     async def on_disconnect(self, room):
-        print(f"[{room.type}] Disconnected from", room)
+        print("[info] Disconnected from {}".format(repr(room)))
 
     async def on_room_denied(self, room):
         """
             This event get out when a room is deleted.
             self.rooms.remove(room_name)
         """
-        print(f"[{room.type}] Rejected from", room,"\n ROOM must be deleted")
+        print("[info] Rejected from {},".format(repr(room))," ROOM must be deleted.")
         
     async def on_room_init(self, room):
         if room.user.isanon:
@@ -51,16 +53,18 @@ class MyBot(chatango.Client):
     async def on_message(self, message):
         print(time.strftime("%b/%d-%H:%M:%S", time.localtime(message.time)),
               message.room.name, message.user.showname, ascii(message.body)[1:-1])
-        message_content = message.body.split(' ')
-        if len(message_content) < 1:
-            cmd, args = message_content[0], message_content[1:]
+        message_content = message.body
+        if len(message_content.split()) > 1:
+            cmd, args = message_content.split(" ", 1)
+            args = args.split()
         else:
-            cmd, args = message_content[0], []
+            cmd, args = message_content, []
+        cmd = cmd.lower()
         if cmd[0] in config.prefix:
             use_prefix = True
             cmd = cmd[1:]
-        else: use_prefix = False
-        cmd = cmd.lower()
+        else: 
+            use_prefix = False
         if use_prefix:
             if cmd in ['hello', 'test', 'a']:
                 await message.channel.send(f"Hello {message.user.showname}")
@@ -68,15 +72,19 @@ class MyBot(chatango.Client):
             elif cmd in ['j','join'] and args:
                 if message.user.name in config.owners:
                     await self.join(args[0])
-                else: await message.channel.send("{} is not in config.owners".format(messsage.user.name))
+                    await message.channel.send(f"I was connected to {args[0]}")
+                else: 
+                    await message.channel.send("{} is not in config.owners".format(messsage.user.name))
            
             elif cmd in ['l','leave'] and args:
+                room = args[0]
                 if message.user.name in config.owners:
-                    await message.channel.send("Leaving {} requested by {}".format(args[0], messsage.user.name))
-                    self.get_room(args[0])._reconnect = False
-                    self.set_timeout(1, self.leave, args[0])
-                else: await message.channel.send("{} is not in config.owners".format(messsage.user.name))
-                    
+                    await message.channel.send("Leaving {} requested by {}".format(room, message.user.name))
+                    self.get_room(room).change_reconnect # Just set _reconnect to False
+                    self.set_timeout(1, self.leave, room, False)
+                else: 
+                    await message.channel.send("{} is not in config.owners".format(message.user.name))
+
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     bot = MyBot()
