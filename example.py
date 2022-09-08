@@ -8,7 +8,7 @@ import typing
 class config:
     prefix = ['!']
     owners = ['theclonerx', 'neokuze']
-    rooms = ['visudo','sudoers']
+    rooms = ['examplegroup']
     botuser = ['ExampleBot', ''] # password
 
 class MyBot(chatango.Client):
@@ -90,8 +90,9 @@ if __name__ == "__main__":
     bot = MyBot()
     bot.default_user(config.botuser[0], config.botuser[1]) # easy_start
 #     or_accounts = [["user1","passwd1"], ["user2","passwd2"]]
-#     bot.default_user(accounts=or_accounts, pm=False) #True if passwd was input.
-    ListBots = [bot.start()] # Multiple instances 
+#     bot.default_user(accounts=or_accounts)
+    activate_pm_if_password = True if config.botuser[1] else False
+    ListBots = [bot.start(pm=activate_pm_if_password)] # Multiple instances 
     task = asyncio.gather(*ListBots, return_exceptions=True)
     try:
         loop.run_until_complete(task)
