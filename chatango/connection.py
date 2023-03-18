@@ -49,29 +49,39 @@ class Connection:
 
     async def _do_recv(self):
         while True:
-            message = await self._connection.receive()
-            assert message.type is aiohttp.WSMsgType.TEXT
-            if not message.data:
-                # pong
-                cmd = "pong"
-                args = ""
-            else:
-                cmd, _, args = message.data.partition(":")
-            args = args.split(":")
-            if hasattr(self, f"_rcmd_{cmd}"):
-                try:
-                    await getattr(self, f"_rcmd_{cmd}")(args)
-                    
-                except (asyncio.exceptions.CancelledError):
-                    break
-                except:
-                    if int(self.client.debug) == 1:
-                        print("Error while handling command",
+            try:
+                message = await self._connection.receive()
+                assert message.type is aiohttp.WSMsgType.TEXT
+                if not message.data:
+                    # pong
+                    cmd = "pong"
+                    args = ""
+                else:
+                    cmd, _, args = message.data.partition(":")
+                args = args.split(":")
+                if hasattr(self, f"_rcmd_{cmd}"):
+                    try:
+                        await getattr(self, f"_rcmd_{cmd}")(args)
+                    except (asyncio.exceptions.CancelledError):
+                        break
+                    except:
+                        if int(self.client.debug) == 1:
+                            print("Error while handling command",
                               cmd, file=sys.stderr)
-                        traceback.print_exc(file=sys.stderr)
-            elif int(self.client.debug) == 1:
-                print(self, "Unhandled received command", cmd, args, file=sys.stderr)
-            if not self.connected: break  
+                            traceback.print_exc(file=sys.stderr)
+                elif int(self.client.debug) == 1:
+                    print(self, "Unhandled received command", cmd, args, file=sys.stderr)
+                if not self.connected: break
+            except aiohttp.WSServerDisconnectedError:
+                print("Lost connection to server")
+                await self.cancel()
+                await asyncio.sleep(10)
+                try:
+                    await self.connect()
+                except Exception as e:
+                    print(f"Failed to reconnect: {e}")
+
+              
         
 class Socket: #resolver for socket client
     def __init__(self, client):
