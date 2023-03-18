@@ -77,7 +77,7 @@ class Connection:
                 await self.cancel()
                 await asyncio.sleep(10)
                 try:
-                    await self._connect()
+                    await self.login()
                 except Exception as e:
                     print(f"Failed to reconnect: {e}")
 
