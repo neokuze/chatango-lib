@@ -86,13 +86,14 @@ class MyBot(chatango.Client):
                     await message.channel.send("{} is not in config.owners".format(message.user.name))
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     bot = MyBot()
     bot.default_user(config.botuser[0], config.botuser[1]) # easy_start
 #     or_accounts = [["user1","passwd1"], ["user2","passwd2"]]
 #     bot.default_user(accounts=or_accounts)
     activate_pm_if_password = True if config.botuser[1] else False
-    ListBots = [bot.start(pm=activate_pm_if_password)] # Multiple instances 
+    ListBots = [bot.start(pm=activate_pm_if_password)] # Multiple instances
     task = asyncio.gather(*ListBots, return_exceptions=True)
     try:
         loop.run_until_complete(task)
