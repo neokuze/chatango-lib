@@ -216,32 +216,41 @@ class User: #TODO a new format for users
 
                 
     async def get_main_profile(self):
-        parse_dict = {'l': 'location','body': 'body','d': 'd','b': 'last_change'}
         if not self.isanon:
             tasks = await make_requests(self._links[2:])
             items = tasks.get('mod1').result()
             if items is not None:
                 about = items.replace('<?xml version="1.0" ?>', '')
-                gender = about.split('<s>')[1].split('<')[0] if len(about.split('<s>')) > 1 else '?'
-                self._styles._profile['about'].update({'gender': gender})
-                for tag, k in parse_dict.items():
-                    if tag == 'l':
-                        if len(about.split('<l')) > 1:
-                            result = about.split('<l')[1].split('>', 1)[1].split('</l>')[0]
-                    else:
-                        result = re.findall(r'((?:<{0}>)+)([^>].*?[^<])((?:</{0}>)+)'.format(tag), about)
-                        result = result[0][1] if isinstance(result, list) and result else ''
-                    
-                    if tag == 'b':
-                        age = abs(datetime.datetime.now().year-int(result.split('-')[0]))
-                        self._styles._profile['about'].update({'age': age})
-                    if result:
-                        self._styles._profile['about'].update({f'{k}': result})
+                gender_start = about.find('<s>')
+                gender_end = about.find('</s>', gender_start)
+                gender = about[gender_start+3:gender_end] if gender_start != -1 else '?'
+                self._styles._profile['about']['gender'] = gender
+
+                location_start = about.find('<l')
+                location_end = about.find('</l>', location_start)
+                location = about[location_start+2:location_end] if location_start != -1 else ''
+                self._styles._profile['about']['location'] = location
+                
+                last_change_start = about.find('<b>')
+                last_change_end = about.find('</b>', last_change_start)
+                last_change = about[last_change_start+3:last_change_end] if last_change_start != -1 else ''
+                self._styles._profile['about']['last_change'] = last_change
+                
+                if last_change:
+                    age = abs(datetime.datetime.now().year-int(last_change.split('-')[0]))
+                    self._styles._profile['about']['age'] = age
+                body_start = about.find('<body>')
+                body_end = about.find('</body>', body_start)
+                body = about[body_start+6:body_end] if body_start != -1 else ''
+                self._styles._profile['about'].update({'body': urllib.parse.unquote(body)})
+            
             try:
                 full_prof = tasks.get('mod2').result()
                 if full_prof is not None and str(full_prof)[:5] == '<?xml':
-                    full_prof = full_prof.split('<body', 1)[1].split('>', 1)[1].split('</body>', 1)[0]
-                    self._styles._profile['full'] = full_prof
+                    full_prof_start = full_prof.find('<body')
+                    full_prof_end = full_prof.find('</body>', full_prof_start)
+                    full_prof_body = full_prof[full_prof_start+len('<body'):full_prof_end] if full_prof_start != -1 else ''
+                    self._styles._profile['full'] = full_prof_body
             except (AttributeError, KeyError):
                 pass
 
