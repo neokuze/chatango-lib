@@ -500,15 +500,14 @@ class Room(Connection):
 
     async def send_message(self, message, use_html=False, flags=None):
         if not self.silent:
-            message_flags = flags if flags else str(
-                self.message_flags+self.badge) or str(0+self.badge)
+            message_flags = flags if flags else self.message_flags+self.badge or 0+self.badge
             msg = str(message)
             if not use_html:
                 msg = html.escape(msg, quote=False)
             msg = msg.replace('\n', '\r').replace('~', '&#126;')
             for msg in message_cut(msg, self._maxlen):
                 message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
-                await self._send_command("bm", _id_gen(), message_flags, message)
+                await self._send_command("bm", _id_gen(), str(message_flags), message)
 
     async def _rcmd_ok(self, args):  # TODO
         self._connected = True
