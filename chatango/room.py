@@ -141,6 +141,7 @@ class Room(Connection):
         self._userhistory = deque(maxlen=10)
         self._userdict = dict()
         self._mqueue = dict()
+        self._uqueue = dict()
         self._msgs = dict()
         self._users = dict()
         self._unid = str()
@@ -572,7 +573,15 @@ class Room(Connection):
             for message_inwait in self._del_dict:
                 if self._del_dict[message_inwait]["m"] == msg.body and self.user == msg.user:
                     self._del_dict[message_inwait].update({"i": msg})
-        self._mqueue[msg._id] = msg
+        if args[5] in self._uqueue:
+            msgid = self._uqueue.pop(args[5])
+            if msg._user != self._user:
+                pass
+            msg.attach(self, msgid)
+            self._add_history(msg)
+            await self.client._call_event("message", msg)
+        else:
+            self._mqueue[msg._id] = msg
 
     async def _rcmd_premium(self, args):  # TODO
         if self._bgmode and (args[0] == '210' or (
@@ -592,6 +601,8 @@ class Room(Connection):
             msg.attach(self, args[1])
             self._add_history(msg)
             await self.client._call_event("message", msg)
+        else:
+            self._uqueue[args[0]] = args[1]
 
     async def _rcmd_gparticipants(self, args):
         """old command, chatango keep sending it."""
