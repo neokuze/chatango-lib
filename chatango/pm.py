@@ -180,7 +180,7 @@ class PM(Socket):
     
     async def _rcmd_msg(self, args):
         msg = await _process_pm(self, args)
-        if self.client.debug > 2:
+        if self.client.debug:
             print("pmmsg:",args)
         self._add_to_history(msg)
         await self.client._call_event("message", msg)
@@ -237,7 +237,7 @@ class PM(Socket):
         await self.client._call_event(f"pm_contact_{args[2]}", friend)
  
     async def _rcmd_block_list(self, args):
-        if self.client.debug > 1:
+        if self.client.debug:
             print("block_list_pm:", args)
 
     async def _rcmd_wladd(self, args):

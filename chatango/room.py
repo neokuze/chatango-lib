@@ -478,7 +478,7 @@ class Room(Connection):
         except aiohttp.client_exceptions.ClientConnectorError:
             self._connection = object()
             self._connection.closed = True
-            if int(self.client.debug) > 0:
+            if self.client.debug:
                 print(f"[debug] Server {self.server} is down!")
 
     async def login(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):

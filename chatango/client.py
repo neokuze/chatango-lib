@@ -13,7 +13,7 @@ from .message import Fonts
 
 
 class Client:
-    def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None, debug=0):
+    def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None, debug=False):
         if aiohttp_session is None:
             aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
 
@@ -21,7 +21,7 @@ class Client:
         self.loop = asyncio.AbstractEventLoop
         self.pm = None
         self.user = None
-        self.debug = 0 # debug
+        self.debug = debug
 
         self._running = False
         self.silent = 2
@@ -148,7 +148,7 @@ class Client:
         return self._running
 
     async def on_event(self, event: str, *args: typing.Any, **kwargs: typing.Dict[str, typing.Any]):
-        if int(self.debug) == 3:
+        if self.debug:
             print(event, repr(args), repr(kwargs))
 
     async def _call_event(self, event: str, *args, **kwargs):

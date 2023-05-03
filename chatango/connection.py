@@ -65,11 +65,11 @@ class Connection:
                     except (asyncio.exceptions.CancelledError):
                         break
                     except:
-                        if int(self.client.debug) == 1:
+                        if self.client.debug:
                             print("Error while handling command",
                               cmd, file=sys.stderr)
                             traceback.print_exc(file=sys.stderr)
-                elif int(self.client.debug) == 1:
+                elif self.client.debug:
                     print(self, "Unhandled received command", cmd, args, file=sys.stderr)
                 if not self.connected: break
             except aiohttp.WSServerDisconnectedError:
