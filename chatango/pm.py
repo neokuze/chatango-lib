@@ -135,10 +135,10 @@ class PM(Socket):
                     await self._send_command("msg", target.lower(), msg)
 
     async def _rcmd_seller_name(self, args):
-        await self.client._call_event("connect", self)
+        await self.client._call_event("pm_connect", self)
 
     async def _rcmd_pong(self, args):
-        await self.client._call_event("pong", self)
+        await self.client._call_event("pm_pong", self)
 
     async def _rcmd_premium(self, args):
         if args and args[0] == "210":
@@ -177,7 +177,7 @@ class PM(Socket):
         if self.client.debug:
             print("pmmsg:", args)
         self._add_to_history(msg)
-        await self.client._call_event("message", msg)
+        await self.client._call_event("pm_message", msg)
 
     async def _rcmd_msgoff(self, args):
         msg = await _process_pm(self, args)
@@ -194,7 +194,6 @@ class PM(Socket):
         pass
 
     async def _rcmd_wl(self, args):
-        """Lista de contactos recibida al conectarse"""
         # Restart contact list
         self._friends.clear()
         # Iterate over each contact

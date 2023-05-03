@@ -141,7 +141,7 @@ class Socket:  # resolver for socket client
             await asyncio.sleep(20)
             # ping is an empty message
             await self._send_command("\r\n", terminator="\x00")
-            await self.client._call_event("ping", self)
+            await self.client._call_event("pm_ping", self)
             if not self.connected:
                 break
 
