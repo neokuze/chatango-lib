@@ -1,8 +1,8 @@
 import asyncio
 import aiohttp
 import inspect
-import typing
 import re
+from typing import Optional
 
 from .pm import PM
 from .room import Room
@@ -13,7 +13,7 @@ from .utils import Task, trace
 class Client:
     def __init__(
         self,
-        aiohttp_session: typing.Optional[aiohttp.ClientSession] = None,
+        aiohttp_session: Optional[aiohttp.ClientSession] = None,
         debug=False,
     ):
         if aiohttp_session is None:
@@ -50,14 +50,14 @@ class Client:
             ]
         return None
 
-    async def join(self, room_name: str, anon=False) -> Room:
+    async def join(self, room_name: str, anon=False) -> Optional[Room]:
         """
         @parasm room_name: str
         returns a Room object if roomname is valid
         else is going to return None
         """
         room_name = room_name.lower()
-        expr = re.compile("^([a-z0-9\-]{1,20})$")
+        expr = re.compile("^([a-z0-9-]{1,20})$")
         if not expr.match(room_name):
             return None
         if room_name in self._rooms:
@@ -75,7 +75,7 @@ class Client:
         ]
         await asyncio.wait_for(room.connect(*_accs), 6.0)
 
-    async def leave(self, room_name: str, reconnect: bool(False)):
+    async def leave(self, room_name: str, reconnect: bool):
         room_name = room_name.lower()
         if room_name not in self._rooms:
             return f"{False if NotConnectedError(room_name) else True}"
@@ -138,7 +138,7 @@ class Client:
     def default_user(
         self,
         user_name: str,
-        password: typing.Optional[str] = None,
+        password: Optional[str] = None,
         pm=True,
         accounts=None,
     ):
@@ -149,11 +149,11 @@ class Client:
 
     async def stop(self):
         self._reconnection.cancel()
-        if self.pm._connected == True:
+        if self.pm and self.pm._connected == True:
             await self.pm.cancel()
             print(f"Disconnected from {self.pm}")
         for room in self.rooms:
-            await self.leave(room.name)
+            await self.leave(room.name, False)
         self._running = False
 
     async def enable_bg(self, active=True):
@@ -166,9 +166,7 @@ class Client:
     def running(self):
         return self._running
 
-    async def on_event(
-        self, event: str, *args: typing.Any, **kwargs: typing.Dict[str, typing.Any]
-    ):
+    async def on_event(self, event: str, *args, **kwargs):
         if self.debug:
             print(event, repr(args), repr(kwargs))
 
