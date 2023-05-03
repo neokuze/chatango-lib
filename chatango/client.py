@@ -2,18 +2,20 @@ import asyncio
 import aiohttp
 import inspect
 import typing
-import time
 import re
 
 from .pm import PM
 from .room import Room
 from .exceptions import AlreadyConnectedError, NotConnectedError
 from .utils import Task, trace
-from .message import Fonts
 
 
 class Client:
-    def __init__(self, aiohttp_session: typing.Optional[aiohttp.ClientSession] = None, debug=False):
+    def __init__(
+        self,
+        aiohttp_session: typing.Optional[aiohttp.ClientSession] = None,
+        debug=False,
+    ):
         if aiohttp_session is None:
             aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
 
@@ -33,15 +35,19 @@ class Client:
         self._default_password = None
 
     def __dir__(self):
-        return [x for x in
-                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
-                x[0] != '_']
+        return [
+            x
+            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
+            if x[0] != "_"
+        ]
 
     @property
     def accounts(self):
         if self._using_accounts:
-            return [(x, self._using_accounts[x][0]) for x in range(
-                len(self._using_accounts))]
+            return [
+                (x, self._using_accounts[x][0])
+                for x in range(len(self._using_accounts))
+            ]
         return None
 
     async def join(self, room_name: str, anon=False) -> Room:
@@ -56,16 +62,19 @@ class Client:
             return None
         if room_name in self._rooms:
             isconnected, canreconnect = AlreadyConnectedError(
-                room_name, self._rooms[room_name]).check()
+                room_name, self._rooms[room_name]
+            ).check()
             if not isconnected and canreconnect:
                 await self.leave(room_name, True)
                 self.check_rooms(room_name)
                 await asyncio.sleep(0.2)
         room = Room(self, room_name)
-        _accs = [self._default_user_name if not anon else "",
-                 self._default_password if not anon else ""]
+        _accs = [
+            self._default_user_name if not anon else "",
+            self._default_password if not anon else "",
+        ]
         await asyncio.wait_for(room.connect(*_accs), 6.0)
-        
+
     async def leave(self, room_name: str, reconnect: bool(False)):
         room_name = room_name.lower()
         if room_name not in self._rooms:
@@ -78,7 +87,7 @@ class Client:
             await self._call_event("disconnect", room_name)
             if reconnect:
                 if self._rooms[room_name].reconnect:
-                    self.set_timeout(1,self.join, room_name)
+                    self.set_timeout(1, self.join, room_name)
             return True
 
     async def start(self, user=None, passwd=None, pm=None):
@@ -92,15 +101,19 @@ class Client:
     async def _while_rooms(self):
         while True:
             for room in self._rooms:
-                isconnected, canreconnect = AlreadyConnectedError(room, self._rooms[room]).check()
+                isconnected, canreconnect = AlreadyConnectedError(
+                    room, self._rooms[room]
+                ).check()
                 if canreconnect and not isconnected:
                     await self.leave(room, True)
-            if not self._running: break
+            if not self._running:
+                break
 
     async def pm_start(self, user=None, passwd=None):
         self.pm = PM(self)
-        await self.pm.connect(user or self._default_user_name,
-            passwd or self._default_password)
+        await self.pm.connect(
+            user or self._default_user_name, passwd or self._default_password
+        )
 
     @property
     def rooms(self):
@@ -122,7 +135,13 @@ class Client:
         self.__rcopy.clear()
         return True
 
-    def default_user(self, user_name: str, password: typing.Optional[str] = None, pm=True, accounts=None):
+    def default_user(
+        self,
+        user_name: str,
+        password: typing.Optional[str] = None,
+        pm=True,
+        accounts=None,
+    ):
         self._using_accounts = accounts  # [[user, pass]]
         self._default_user_name = user_name
         self._default_password = password
@@ -147,7 +166,9 @@ class Client:
     def running(self):
         return self._running
 
-    async def on_event(self, event: str, *args: typing.Any, **kwargs: typing.Dict[str, typing.Any]):
+    async def on_event(
+        self, event: str, *args: typing.Any, **kwargs: typing.Dict[str, typing.Any]
+    ):
         if self.debug:
             print(event, repr(args), repr(kwargs))
 
@@ -185,4 +206,3 @@ class Client:
         task = Task(tiempo, funcion, False, *args, **kwargs)
 
         return task
-
