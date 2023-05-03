@@ -22,7 +22,7 @@ class Connection:
         password: Optional[str] = None,
     ):
         if self.connected:
-            raise AlreadyConnectedError(getattr(self, "name", None), self)
+            raise AlreadyConnectedError(getattr(self, "name", None))
         self._first_command = True
         await self._connect(u=user_name, p=password)
         self._recv_task = asyncio.create_task(self._do_recv())
@@ -108,7 +108,7 @@ class Socket:  # resolver for socket client
         user_name, password. For the socket client
         """
         if self.connected:
-            raise AlreadyConnectedError(getattr(self, "name", None), self)
+            raise AlreadyConnectedError(getattr(self, "name", None))
         self._recv, self._connection = await asyncio.open_connection(
             f"{self.server}", self.port
         )

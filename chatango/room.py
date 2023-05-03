@@ -247,6 +247,9 @@ class Room(Connection):
         return sorted([x[1] for x in list(self._userdict.values())],
                       key=lambda z: z.name.lower())
 
+    def check_connected(self):
+        return (self.connected, self.reconnect)
+
     def set_font(self, name_color=None, font_color=None, font_size=None, font_face=None):
         if name_color:
             self._user._styles._name_color = str(name_color)

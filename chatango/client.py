@@ -61,9 +61,7 @@ class Client:
         if not expr.match(room_name):
             return None
         if room_name in self._rooms:
-            isconnected, canreconnect = AlreadyConnectedError(
-                room_name, self._rooms[room_name]
-            ).check()
+            isconnected, canreconnect = self._rooms[room_name].check_connected()
             if not isconnected and canreconnect:
                 await self.leave(room_name, True)
                 self.check_rooms(room_name)
@@ -101,9 +99,7 @@ class Client:
     async def _while_rooms(self):
         while True:
             for room in self._rooms:
-                isconnected, canreconnect = AlreadyConnectedError(
-                    room, self._rooms[room]
-                ).check()
+                isconnected, canreconnect = self._rooms[room].check_connected()
                 if canreconnect and not isconnected:
                     await self.leave(room, True)
             if not self._running:
