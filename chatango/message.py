@@ -46,7 +46,7 @@ class Message(object):  # base
                 x[0] != '_']
 
     def __repr__(self):
-        return "<Message>"
+        return f"<Message {self.room} {self.user} \"{self.body}\">"
 
     @property
     def user(self):

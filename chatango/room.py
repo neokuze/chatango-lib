@@ -162,7 +162,7 @@ class Room(Connection):
         self._connected = None
 
     def __repr__(self):
-        return f"<Room {self.name}, {f'connected as {self._user}' if self.connected else 'not connected'}>"
+        return f"<Room {self.name}>"
 
     @property
     def is_pm(self):
