@@ -1,9 +1,11 @@
 import enum
 import json, urllib
+from typing import Any, Optional
 import re
 import time
 import datetime
 from collections import deque
+
 from .utils import Styles, make_requests
 
 
@@ -67,8 +69,9 @@ class User:  # TODO a new format for users
             setattr(self, "_" + attr, val)
         return self
 
-    def get(name):
-        return User._users.get(name) or User(name)
+    @classmethod
+    def get(cls, name):
+        return cls._users.get(name) or User(name)
 
     def __dir__(self):
         return [
@@ -290,7 +293,7 @@ class User:  # TODO a new format for users
 class Friend:
     _FRIENDS = dict()
 
-    def __init__(self, user, client=None):
+    def __init__(self, user: User, client: Optional[Any] = None):
         self.user = user
         self.name = user.name
         self._client = client
@@ -307,8 +310,9 @@ class Friend:
     def __str__(self):
         return self.name
 
-    def get(name):
-        return Friend._FRIENDS.get(name) or Friend(name)
+    @classmethod
+    def get(cls, name):
+        return cls._FRIENDS.get(name) or Friend(name)
 
     def __dir__(self):
         return [
@@ -348,14 +352,14 @@ class Friend:
         """
         Send a friend request
         """
-        if self.is_friend() == False:
+        if self.client and self.is_friend() == False:
             return await self.client.addfriend(self.name)
 
     async def unfriend(self):
         """
         Delete friend
         """
-        if self.is_friend() == True:
+        if self.client and self.is_friend() == True:
             return await self.client.unfriend(self.name)
 
     @property
@@ -376,7 +380,7 @@ class Friend:
 
     def _check_status(self, _time=None, _idle=None, idle_time=None):  # TODO
         if _time == None and idle_time == None:
-            self.last_active = None
+            self._last_active = None
             return
         if _idle != None:
             self._idle = _idle
