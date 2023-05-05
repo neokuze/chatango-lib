@@ -215,20 +215,22 @@ class PM(Socket):
 
     async def _rcmd_track(self, args):
         friend = self._friends[args[0]] if args[0] in self.friends else None
-        friend._idle = False
-        if args[2] == "online":
-            friend._last_active = time.time() - (int(args[1]) * 60)
-        elif args[2] == "offline":
-            friend._last_active = float(args[1])
-        if args[1] in ["0"] and args[2] in ["app"]:
-            friend._status = "app"
-        else:
-            friend._status = args[2]
+        if friend:
+            friend._idle = False
+            if args[2] == "online":
+                friend._last_active = time.time() - (int(args[1]) * 60)
+            elif args[2] == "offline":
+                friend._last_active = float(args[1])
+            if args[1] in ["0"] and args[2] in ["app"]:
+                friend._status = "app"
+            else:
+                friend._status = args[2]
 
     async def _rcmd_idleupdate(self, args):
         friend = self._friends[args[0]] if args[0] in self.friends else None
-        friend._last_active = time.time()
-        friend._idle = True if args[1] == "0" else False
+        if friend:
+            friend._last_active = time.time()
+            friend._idle = True if args[1] == "0" else False
 
     async def _rcmd_status(self, args):
         friend = self._friends[args[0]] if args[0] in self.friends else None

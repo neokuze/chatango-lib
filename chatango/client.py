@@ -6,7 +6,7 @@ from typing import Optional
 
 from .pm import PM
 from .room import Room
-from .exceptions import AlreadyConnectedError, NotConnectedError
+from .exceptions import NotConnectedError
 from .utils import Task, trace
 
 
