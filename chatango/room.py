@@ -18,6 +18,7 @@ import time
 import enum
 import string
 import random
+import logging
 import urllib.request as urlreq
 
 specials = {
@@ -481,8 +482,7 @@ class Room(Connection):
         except aiohttp.client_exceptions.ClientConnectorError:
             self._connection = object()
             self._connection.closed = True
-            if self.client.debug:
-                print(f"[debug] Server {self.server} is down!")
+            logging.getLogger(__name__).error(f"Server {self.server} is down!")
 
     async def login(self, user_name: typing.Optional[str] = None, password: typing.Optional[str] = None):
         if self.client._using_accounts != None and not password:

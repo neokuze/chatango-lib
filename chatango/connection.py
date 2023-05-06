@@ -2,10 +2,12 @@ import asyncio
 import aiohttp
 import sys
 import traceback
+import logging
 from typing import Optional
 
 from .exceptions import AlreadyConnectedError
 
+logger = logging.getLogger(__name__)
 
 class Connection:
     def __init__(self, client):
@@ -63,6 +65,7 @@ class Connection:
                     args = ""
                 else:
                     cmd, _, args = message.data.partition(":")
+
                 args = args.split(":")
                 if hasattr(self, f"_rcmd_{cmd}"):
                     try:
@@ -70,15 +73,14 @@ class Connection:
                     except asyncio.exceptions.CancelledError:
                         break
                     except:
-                        if self.client.debug:
-                            print("Error while handling command", cmd, file=sys.stderr)
-                            traceback.print_exc(file=sys.stderr)
-                elif self.client.debug:
-                    print(
-                        self, "Unhandled received command", cmd, args, file=sys.stderr
-                    )
+                        logger.error(f"Error while handling command {cmd}")
+                        traceback.print_exc(file=sys.stderr)
+                else:
+                    logger.error(f"{self} Unhandled received command {cmd} {args}")
+
                 if not self.connected:
                     break
+
             except aiohttp.WSServerDisconnectedError:
                 print("Lost connection to server")
                 await self.cancel()
@@ -180,8 +182,7 @@ class Socket:  # resolver for socket client
             try:
                 await getattr(self, f"_rcmd_{cmd}")(args)
             except:
-                if __debug__:
-                    print("Error while handling command", cmd, file=sys.stderr)
-                    traceback.print_exc(file=sys.stderr)
-        elif __debug__:
-            print("Unhandled received command", cmd, file=sys.stderr)
+                logger.error(f"Error while handling command {cmd}")
+                traceback.print_exc(file=sys.stderr)
+        else:
+            logger.error(f"Unhandled received command {cmd}")

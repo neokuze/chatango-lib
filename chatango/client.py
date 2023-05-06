@@ -1,6 +1,5 @@
 import asyncio
 import aiohttp
-import inspect
 import re
 from typing import Optional
 
@@ -8,13 +7,13 @@ from .pm import PM
 from .room import Room
 from .exceptions import NotConnectedError
 from .utils import Task, trace
+from .handler import EventHandler
 
 
-class Client:
+class Client(EventHandler):
     def __init__(
         self,
         aiohttp_session: Optional[aiohttp.ClientSession] = None,
-        debug=False,
     ):
         if aiohttp_session is None:
             aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
@@ -23,7 +22,6 @@ class Client:
         self.loop = asyncio.AbstractEventLoop
         self.pm = None
         self.user = None
-        self.debug = debug
 
         self._running = False
         self.silent = 2
@@ -162,41 +160,23 @@ class Client:
     def running(self):
         return self._running
 
-    async def on_event(self, event: str, *args, **kwargs):
-        if self.debug:
-            print(event, repr(args), repr(kwargs))
+    # def set_interval(self, tiempo, funcion, *args, **kwargs):
+    #     """
+    #     Llama a una función cada intervalo con los argumentos indicados
+    #     @param funcion: La función que será invocada
+    #     @type tiempo int
+    #     @param tiempo:intervalo
+    #     """
+    #     task = Task(tiempo, funcion, True, *args, **kwargs)
 
-    async def _call_event(self, event: str, *args, **kwargs):
-        attr = f"on_{event}"
-        await self.on_event(event, *args, **kwargs)
-        if hasattr(self, attr):
-            await getattr(self, attr)(*args, **kwargs)
+    #     return task
 
-    def event(self, func, name=None):
-        assert inspect.iscoroutinefunction(func)
-        if name is None:
-            event_name = func.__name__
-        else:
-            event_name = name
-        setattr(self, event_name, func)
+    # def set_timeout(self, tiempo, funcion, *args, **kwargs):
+    #     """
+    #     Llama a una función cada intervalo con los argumentos indicados
+    #     @param tiempo: Tiempo en segundos hasta que se ejecute la función
+    #     @param funcion: La función que será invocada
+    #     """
+    #     task = Task(tiempo, funcion, False, *args, **kwargs)
 
-    def set_interval(self, tiempo, funcion, *args, **kwargs):
-        """
-        Llama a una función cada intervalo con los argumentos indicados
-        @param funcion: La función que será invocada
-        @type tiempo int
-        @param tiempo:intervalo
-        """
-        task = Task(tiempo, funcion, True, *args, **kwargs)
-
-        return task
-
-    def set_timeout(self, tiempo, funcion, *args, **kwargs):
-        """
-        Llama a una función cada intervalo con los argumentos indicados
-        @param tiempo: Tiempo en segundos hasta que se ejecute la función
-        @param funcion: La función que será invocada
-        """
-        task = Task(tiempo, funcion, False, *args, **kwargs)
-
-        return task
+    #     return task

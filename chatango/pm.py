@@ -169,13 +169,10 @@ class PM(Socket):
         await self.client._call_event("pm_toofast")
 
     async def _rcmd_msglexceeded(self, args):
-        if self.client.debug:
-            print("msglexceeded", file=sys.stderr)
+        await self.client._call_event("pm_msglexceeded")
 
     async def _rcmd_msg(self, args):
         msg = await _process_pm(self, args)
-        if self.client.debug:
-            print("pmmsg:", args)
         self._add_to_history(msg)
         await self.client._call_event("pm_message", msg)
 
@@ -241,8 +238,7 @@ class PM(Socket):
         await self.client._call_event(f"pm_contact_{args[2]}", friend)
 
     async def _rcmd_block_list(self, args):
-        if self.client.debug:
-            print("block_list_pm:", args)
+        await self.client._call_event("pm_block_list")
 
     async def _rcmd_wladd(self, args):
         if args[1] == "invalid":
