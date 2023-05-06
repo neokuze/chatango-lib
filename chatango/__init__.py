@@ -4,6 +4,5 @@ from .exceptions import *
 from .pm import *
 from .utils import *
 from .user import *
-from .connection import *
 
 __version__ = "1.3.2"
