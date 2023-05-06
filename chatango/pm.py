@@ -12,6 +12,7 @@ from .message import _process_pm, message_cut
 
 logger = logging.getLogger(__name__)
 
+
 class Socket:
     def __init__(self, client):
         self.client = client

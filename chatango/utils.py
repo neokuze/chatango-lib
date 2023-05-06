@@ -85,6 +85,13 @@ def trace():
     trace_config.on_request_exception.append(on_request_exception)
     return trace_config
 
+_aiohttp_session = None
+def get_aiohttp_session():
+    global _aiohttp_session
+    if _aiohttp_session is None:
+        _aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
+    return _aiohttp_session
+
 class Task:
     ALIVE = False
     _INSTANCES = set()
@@ -151,11 +158,10 @@ async def get_token(user_name, passwd):
         "password": str(passwd),
         "storecookie": "on",
         "checkerrors": "yes"}
-    async with aiohttp.ClientSession() as session:
-        async with session.post(chatango[0], data=payload) as resp:
-            if chatango[1] in resp.cookies:
-                token = str(resp.cookies[chatango[1]]).split(
-                    "=")[1].split(";")[0]
+    async with get_aiohttp_session().post(chatango[0], data=payload) as resp:
+        if chatango[1] in resp.cookies:
+            token = str(resp.cookies[chatango[1]]).split(
+                "=")[1].split(";")[0]
     return token
 
 
@@ -192,7 +198,7 @@ def multipart(data, files, boundary=None):
     return body, headers
 
 
-async def sessionget(session, url):
+async def sessionget(session: aiohttp.ClientSession, url: str):
     async with session.get(url) as resp:
         assert resp.status == 200
         try:
@@ -204,11 +210,10 @@ async def sessionget(session, url):
 
 async def make_requests(urls):
     r = {}
-    async with aiohttp.ClientSession() as session:
-        for x in urls:
-            task = asyncio.create_task(sessionget(session, x[1]))
-            r[x[0]] = task
-        await asyncio.gather(*r.values())
+    for x in urls:
+        task = asyncio.create_task(sessionget(get_aiohttp_session(), x[1]))
+        r[x[0]] = task
+    await asyncio.gather(*r.values())
     return r
 
 

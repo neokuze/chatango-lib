@@ -1,25 +1,15 @@
 import asyncio
-import aiohttp
 import re
 from typing import Optional
 
 from .pm import PM
 from .room import Room
 from .exceptions import NotConnectedError
-from .utils import Task, trace
 from .handler import EventHandler
 
 
 class Client(EventHandler):
-    def __init__(
-        self,
-        aiohttp_session: Optional[aiohttp.ClientSession] = None,
-    ):
-        if aiohttp_session is None:
-            aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
-
-        self.aiohttp_session = aiohttp_session
-        self.loop = asyncio.AbstractEventLoop
+    def __init__(self):
         self.pm = None
         self.user = None
 

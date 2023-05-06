@@ -14,6 +14,7 @@ from collections import deque, namedtuple
 from typing import Optional
 
 from .utils import (
+    get_aiohttp_session,
     get_server,
     gen_uid,
     get_anon_name,
@@ -355,13 +356,14 @@ class Room(Connection):
         account, success = _account_selector(self), None
         data, headers = multipart(dict(u=account[0], p=account[1]), files)
         headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(
-                "http://chatango.com/uploadimg", data=data.encode("latin-1")
-            ) as resp:
-                response = await resp.text()
-                if "success" in response:
-                    success = response.split(":", 1)[1]
+        async with get_aiohttp_session.post(
+            "http://chatango.com/uploadimg",
+            data=data.encode("latin-1"),
+            headers=headers,
+        ) as resp:
+            response = await resp.text()
+            if "success" in response:
+                success = response.split(":", 1)[1]
         if success != None:
             if return_url:
                 url = "http://ust.chatango.com/um/{}/{}/{}/img/t_{}.jpg"
@@ -538,7 +540,7 @@ class Room(Connection):
 
     async def _connect(self, u=None, p=None):
         try:
-            self._connection = await self.client.aiohttp_session.ws_connect(
+            self._connection = await get_aiohttp_session().ws_connect(
                 f"ws://{self.server}:8080/", origin="http://st.chatango.com"
             )
             await self._send_command("bauth", self.name, self._uid, u or "", p or "")
