@@ -90,6 +90,10 @@ class Client(EventHandler):
         )
 
     @property
+    def running(self):
+        return self._running
+
+    @property
     def rooms(self):
         return [self._rooms[x] for x in self._rooms]
 
@@ -134,9 +138,35 @@ class Client(EventHandler):
         for room in self._rooms:
             await self._rooms[room].set_bg_mode(int(active))
 
-    @property
-    def running(self):
-        return self._running
+    # async def upload_image(self, path, return_url=False):
+    #     if self.user.isanon:
+    #         return None
+    #     with open(path, mode="rb") as f:
+    #         files = {
+    #             "filedata": {"filename": path, "content": f.read().decode("latin-1")}
+    #         }
+    #     data, headers = multipart(
+    #         dict(u=self.client._default_user_name, p=self.client._default_password),
+    #         files,
+    #     )
+    #     headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
+    #     async with get_aiohttp_session.post(
+    #         "http://chatango.com/uploadimg",
+    #         data=data.encode("latin-1"),
+    #         headers=headers,
+    #     ) as resp:
+    #         response = await resp.text()
+    #         if "success" in response:
+    #             success = response.split(":", 1)[1]
+    #     if success != None:
+    #         if return_url:
+    #             url = "http://ust.chatango.com/um/{}/{}/{}/img/t_{}.jpg"
+    #             return url.format(
+    #                 self.user.name[0], self.user.name[1], self.user.name, success
+    #             )
+    #         else:
+    #             return f"img{success}"
+    #     return None
 
     # def set_interval(self, tiempo, funcion, *args, **kwargs):
     #     """
