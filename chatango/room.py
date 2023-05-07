@@ -594,7 +594,7 @@ class Room(Connection):
         await self._reload()
 
     async def _rcmd_pong(self, args):
-        await self.client._call_event(self, "pong")
+        await self.client._call_event("pong", self)
 
     async def _rcmd_nomore(self, args):  # TODO
         """No more past messages"""

@@ -54,7 +54,8 @@ class Socket:
         else:
             terminator = "\r\n\0"
         message = ":".join(args) + terminator
-        logger.debug(f'OUT {":".join(args)}')
+        if message != "\r\n\r\n\x00": # ping
+            logger.debug(f'OUT {":".join(args)}')
         if self._connection:
             self._connection.write(message.encode())
             await self._connection.drain()

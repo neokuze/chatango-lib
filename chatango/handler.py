@@ -4,6 +4,8 @@ import logging
 
 class EventHandler:
     async def on_event(self, event: str, *args, **kwargs):
+        if "ping" in event or "pong" in event:
+            return
         if len(args) == 0:
             args_section = ""
         elif len(args) == 1:
