@@ -18,7 +18,6 @@ class Client(EventHandler):
         self._rooms = {}
         self.errors = []
         self.__rcopy = {}
-        self._using_accounts = None
         self._default_user_name = None
         self._default_password = None
 
@@ -28,15 +27,6 @@ class Client(EventHandler):
             for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
             if x[0] != "_"
         ]
-
-    @property
-    def accounts(self):
-        if self._using_accounts:
-            return [
-                (x, self._using_accounts[x][0])
-                for x in range(len(self._using_accounts))
-            ]
-        return None
 
     async def join(self, room_name: str, anon=False) -> Optional[Room]:
         """
@@ -124,9 +114,7 @@ class Client(EventHandler):
         user_name: str,
         password: Optional[str] = None,
         pm=True,
-        accounts=None,
     ):
-        self._using_accounts = accounts  # [[user, pass]]
         self._default_user_name = user_name
         self._default_password = password
         self._default_pm = pm

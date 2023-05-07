@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import sys
-import typing
 import html
 import sys
 import time
@@ -20,7 +19,6 @@ from .utils import (
     get_anon_name,
     _id_gen,
     multipart,
-    _account_selector,
 )
 from .message import Message, MessageFlags, _process, message_cut
 from .user import User, ModeratorFlags, AdminFlags
@@ -355,8 +353,10 @@ class Room(Connection):
             files = {
                 "filedata": {"filename": path, "content": f.read().decode("latin-1")}
             }
-        account, success = _account_selector(self), None
-        data, headers = multipart(dict(u=account[0], p=account[1]), files)
+        data, headers = multipart(
+            dict(u=self.client._default_user_name, p=self.client._default_password),
+            files,
+        )
         headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
         async with get_aiohttp_session.post(
             "http://chatango.com/uploadimg",
@@ -554,15 +554,9 @@ class Room(Connection):
 
     async def login(
         self,
-        user_name: typing.Optional[str] = None,
-        password: typing.Optional[str] = None,
+        user_name: Optional[str] = None,
+        password: Optional[str] = None,
     ):
-        if self.client._using_accounts != None and not password:
-            for acc in self.client.accounts:
-                if acc[1].lower() == user_name.lower():
-                    user_name = self.client._using_accounts[acc[0]][0]
-                    password = self.client._using_accounts[acc[0]][1]
-                    break
         self._user = User(user_name, isanon=False if password == "" else True)
         await self._send_command("blogin", user_name or "", password or "")
 

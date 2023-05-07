@@ -239,16 +239,6 @@ def _clean_message(msg: str, pm: bool = False) -> [str, str, str]:  # TODO
     return msg, n or '', f or ''
 
 
-def _account_selector(room):
-    if room.client._using_accounts != None:
-        accs = [x for x in room.client._using_accounts if x[0].lower()
-                == room.user.name]
-        data = [accs[0][0], accs[0][1]]
-    else:
-        data = [room.client._default_user_name, room.client._default_password]
-    return data
-
-
 def _strip_html(msg: str) -> str:
     li = msg.split("<")
     if len(li) == 1:
