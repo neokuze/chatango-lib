@@ -3,6 +3,7 @@ import time
 import asyncio
 import logging
 import traceback
+from typing import Optional
 
 from .utils import get_token, gen_uid
 from .exceptions import AlreadyConnectedError
@@ -17,27 +18,34 @@ logger = logging.getLogger(__name__)
 class Socket:
     def __init__(self, handler: EventHandler):
         self.handler = handler
-        self._first = True
-        self._connected = False
-        self._recv = None
-        self._connection = None
-        self._recv_task = None
-        self._ping_task = None
+        self._reset()
 
-    async def _connect(self, server: str, port: int):
-        self._recv, self._connection = await asyncio.open_connection(server, port)
-        self._recv_task = asyncio.create_task(self._do_recv())
-        self._ping_task = asyncio.create_task(self._do_ping())
+    def _reset(self):
+        self._connected = False
+        self._first_command = True
+        self._recv: Optional[asyncio.StreamReader] = None
+        self._connection: Optional[asyncio.StreamWriter] = None
+        self._recv_task: Optional[asyncio.Task] = None
+        self._ping_task: Optional[asyncio.Task] = None
 
     @property
     def connected(self):
         return self._connected
 
-    async def cancel(self):
-        self._connected = False
-        self._recv_task.cancel()
-        self._ping_task.cancel()
-        await self._connection.close()
+    async def _connect(self, server: str, port: int):
+        self._recv, self._connection = await asyncio.open_connection(server, port)
+        self._connected = True
+        self._recv_task = asyncio.create_task(self._do_recv())
+        self._ping_task = asyncio.create_task(self._do_ping())
+
+    async def _disconnect(self):
+        if self._ping_task:
+            self._ping_task.cancel()
+        if self._connection:
+            self._connection.close()
+            await self._connection.wait_closed()
+        self._reset()
+        await self.handler._call_event("pm_disconnect", self)
 
     async def _send_command(self, *args, terminator="\r\n\0"):
         if self._first_command:
@@ -46,49 +54,57 @@ class Socket:
         else:
             terminator = "\r\n\0"
         message = ":".join(args) + terminator
-        self._connection.write(message.encode())
-        await self._connection.drain()
+        logger.debug(f'OUT {":".join(args)}')
+        if self._connection:
+            self._connection.write(message.encode())
+            await self._connection.drain()
 
     async def _do_ping(self):
-        while True:
-            await asyncio.sleep(20)
-            # ping is an empty message
-            await self._send_command("\r\n", terminator="\x00")
-            await self.handler._call_event("pm_ping", self)
-            if not self.connected:
-                break
+        """
+        Ping the socket every minute to keep alive
+        """
+        try:
+            while True:
+                await asyncio.sleep(60)
+                if not self.connected:
+                    break
+                await self._send_command("\r\n", terminator="\x00")
+                await self.handler._call_event("pm_ping", self)
+        except asyncio.exceptions.CancelledError:
+            pass
 
     async def _do_recv(self):
-        while True:
-            # TODO if the rcv is higher than bytes, may is cutted
-            rcv = await self._recv.read(2048)
-            await asyncio.sleep(0.0001)
-            if rcv:  # si recibe datos.
-                data = rcv.decode()
-                if data == "\r\n\x00":  # pong
-                    await self._do_process("")
-                else:
-                    recv = data.split("\r\n\x00")  # event
-                    for r in recv:
-                        if r != "":
-                            await self._do_process(r)
-            else:
-                self._recv.close()
-                print(f"Disconnected from {self}")
+        """
+        Receive and process data from the socket
+        """
+        while self._recv:
+            data: bytes = await self._recv.read(2048)
             if not self.connected:
                 break
-        raise ConnectionAbortedError
+            if data:
+                data_str: str = data.decode()
+                if data_str == "\r\n\x00":
+                    await self._do_process("pong")
+                else:
+                    cmds = data_str.split("\r\n\x00")
+                    for cmd in cmds:
+                        if cmd != "":
+                            logger.debug(f" IN {cmd}")
+                            await self._do_process(cmd)
+            else:
+                asyncio.create_task(self._disconnect())
+                break
+            await asyncio.sleep(0.0001)
 
-    async def _do_process(self, recv):
+    async def _do_process(self, recv: str):
         """
-        Process socket event
+        Process one command
         """
-        if not recv:
-            cmd = "pong"
-            args = ""
-        else:
+        if recv:
             cmd, _, args = recv.partition(":")
             args = args.split(":")
+        else:
+            return
         if hasattr(self, f"_rcmd_{cmd}"):
             try:
                 await getattr(self, f"_rcmd_{cmd}")(args)
@@ -105,7 +121,6 @@ class PM(Socket):
         self.server = "c1.chatango.com"
         self.port = 443
         self.__token = None
-        self._first_command = True
         self._correctiontime = 0
 
         # misc
@@ -162,6 +177,18 @@ class PM(Socket):
         await self._connect(self.server, self.port)
         await self._login(user_name, password)
 
+    async def disconnect(self):
+        await self._disconnect()
+
+    async def listen(self, user_name: str, password: str, reconnect=False):
+        while True:
+            await self.connect(user_name, password)
+            if self._recv_task:
+                await asyncio.gather(self._recv_task)
+            await asyncio.sleep(0.5)
+            if not reconnect:
+                break
+
     async def block(self, user):  # TODO
         if isinstance(user, User):
             user = user.name
@@ -209,10 +236,10 @@ class PM(Socket):
             await self._send_command("wldelete", friend.name)
 
     async def _login(self, user_name: str, password: str):
-        self.__token = await get_token(user_name, password)
+        if not self.__token:
+            self.__token = await get_token(user_name, password)
         if self.__token:
             await self._send_command("tlogin", self.__token, "2", self._uid)
-            self._connected = True
             self._user = User(str(user_name))
 
     async def send_message(self, target, message: str, use_html: bool = False):
@@ -255,7 +282,6 @@ class PM(Socket):
         await self.handler._call_event("pm_denied", self, args)
 
     async def _rcmd_OK(self, args):
-        self._connected = True
         if self.friends or self.blocked:
             self.friends.clear()
             self.blocked.clear()

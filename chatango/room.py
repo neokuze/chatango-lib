@@ -92,9 +92,11 @@ class Connection:
             await self._connection.send_str(message)
 
     async def _do_ping(self):
+        """
+        Ping the socket every minute to keep alive
+        """
         while True:
-            await asyncio.sleep(20)
-            # ping is an empty message
+            await asyncio.sleep(60)
             await self._send_command("\r\n", terminator="\x00")
             await self.client._call_event("ping", self)
             if not self.connected:
