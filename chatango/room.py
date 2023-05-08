@@ -57,85 +57,100 @@ class RoomFlags(enum.IntFlag):
 class Connection:
     def __init__(self, handler: EventHandler):
         self.handler = handler
-        self._connected = False
-        self._connection = None
-        self._recv_task = None
-        self._ping_task = None
-        self._first_command = True
+        self._reset()
 
-    async def connect(
-        self,
-        user_name: Optional[str] = None,
-        password: Optional[str] = None,
-    ):
-        if self.connected:
-            raise AlreadyConnectedError(getattr(self, "name", None))
+    def _reset(self):
+        self._connected = False
         self._first_command = True
-        await self._connect(u=user_name, p=password)
-        self._recv_task = asyncio.create_task(self._do_recv())
-        self._ping_task = asyncio.create_task(self._do_ping())
+        self._connection: Optional[aiohttp.ClientWebSocketResponse] = None
+        self._recv_task: Optional[asyncio.Task] = None
+        self._ping_task: Optional[asyncio.Task] = None
 
     @property
     def connected(self):
         return self._connected
 
-    async def cancel(self):
-        self._connected = False
-        self._recv_task.cancel()
-        self._ping_task.cancel()
-        await self._connection.close()
+    async def _connect(self, server: str):
+        try:
+            self._connection = await get_aiohttp_session().ws_connect(
+                f"ws://{server}:8080/", origin="http://st.chatango.com"
+            )
+            self._connected = True
+            self._recv_task = asyncio.create_task(self._do_recv())
+            self._ping_task = asyncio.create_task(self._do_ping())
+        except aiohttp.ClientError as e:
+            await self._disconnect()
+            logging.getLogger(__name__).error(f"Could not connect to {server}: {e}")
+
+    async def _disconnect(self):
+        if self._ping_task:
+            self._ping_task.cancel()
+        if self._connection:
+            await self._connection.close()
+        self._reset()
+        await self.handler._call_event("disconnect", self)
 
     async def _send_command(self, *args, terminator="\r\n\0"):
         message = ":".join(args) + terminator
-        if not self._connection._closed:
+        if message != "\r\n\x00":  # ping
+            logger.debug(f'OUT {":".join(args)}')
+        if self._connection:
             await self._connection.send_str(message)
 
     async def _do_ping(self):
         """
         Ping the socket every minute to keep alive
         """
-        while True:
-            await asyncio.sleep(60)
-            await self._send_command("\r\n", terminator="\x00")
-            await self.handler._call_event("ping", self)
-            if not self.connected:
-                break
-
-    async def _do_recv(self):
-        while True:
-            try:
-                message = await self._connection.receive()
-                assert message.type is aiohttp.WSMsgType.TEXT
-                if not message.data:
-                    # pong
-                    cmd = "pong"
-                    args = ""
-                else:
-                    cmd, _, args = message.data.partition(":")
-
-                args = args.split(":")
-                if hasattr(self, f"_rcmd_{cmd}"):
-                    try:
-                        await getattr(self, f"_rcmd_{cmd}")(args)
-                    except asyncio.exceptions.CancelledError:
-                        break
-                    except:
-                        logger.error(f"Error while handling command {cmd}")
-                        traceback.print_exc(file=sys.stderr)
-                else:
-                    logger.error(f"{self} Unhandled received command {cmd} {args}")
-
+        try:
+            while True:
+                await asyncio.sleep(90)
                 if not self.connected:
                     break
+                await self._send_command("\r\n", terminator="\x00")
+                await self.handler._call_event("ping", self)
+        except asyncio.exceptions.CancelledError:
+            pass
 
-            except aiohttp.WSServerDisconnectedError:
-                print("Lost connection to server")
-                await self.cancel()
-                await asyncio.sleep(10)
-                try:
-                    await self.login()
-                except Exception as e:
-                    print(f"Failed to reconnect: {e}")
+    async def _do_recv(self):
+        while self._connection:
+            message = await self._connection.receive()
+            if not self.connected:
+                break
+            if message.type == aiohttp.WSMsgType.TEXT:
+                if message.data:
+                    logger.debug(f" IN {message.data}")
+                    await self._do_process(message.data)
+                else:
+                    await self._do_process("pong")
+            elif (
+                message.type == aiohttp.WSMsgType.CLOSE
+                or message.type == aiohttp.WSMsgType.CLOSING
+                or message.type == aiohttp.WSMsgType.CLOSED
+                or message.type == aiohttp.WSMsgType.ERROR
+            ):
+                asyncio.create_task(self._disconnect())
+                break
+            else:
+                logger.error(f"Unexpected aiohttp.WSMsgType: {message.type}")
+            await asyncio.sleep(0.0001)
+
+    async def _do_process(self, recv: str):
+        """
+        Process one command
+        """
+        if recv:
+            cmd, _, args = recv.partition(":")
+            args = args.split(":")
+        else:
+            return
+        if hasattr(self, f"_rcmd_{cmd}"):
+            try:
+                await getattr(self, f"_rcmd_{cmd}")(args)
+            except:
+                logger.error(f"Error while handling command {cmd}")
+                traceback.print_exc(file=sys.stderr)
+        else:
+            logger.error(f"Unhandled received command {cmd}")
 
 
 class Room(Connection):
@@ -189,7 +204,6 @@ class Room(Connection):
         self.message_flags = 0
         self._announcement = [0, 0, ""]
         self._badge = 0
-        self._connected = None
 
     def __repr__(self):
         return f"<Room {self.name}>"
@@ -505,23 +519,36 @@ class Room(Connection):
             if self.user.ispremium:
                 await self._send_command("msgbg", str(self._bgmode))
 
-    async def _disconnect(self):
-        self._connected = False
+    async def disconnect(self):
         for x in self.userlist:
             x.removeSessionId(self, 0)
-        await self.handler._call_event("disconnect", self)
+        await self._disconnect()
 
-    async def _connect(self, u=None, p=None):
-        try:
-            self._connection = await get_aiohttp_session().ws_connect(
-                f"ws://{self.server}:8080/", origin="http://st.chatango.com"
-            )
-            await self._send_command("bauth", self.name, self._uid, u or "", p or "")
+    async def connect(
+        self,
+        user_name: Optional[str] = None,
+        password: Optional[str] = None,
+    ):
+        if self.connected:
+            raise AlreadyConnectedError(self.name)
+        await self._connect(self.server)
+        await self._send_command(
+            "bauth", self.name, self._uid, user_name or "", password or ""
+        )
 
-        except aiohttp.client_exceptions.ClientConnectorError:
-            self._connection = object()
-            self._connection.closed = True
-            logging.getLogger(__name__).error(f"Server {self.server} is down!")
+    async def listen(
+        self,
+        user_name: Optional[str] = None,
+        password: Optional[str] = None,
+        reconnect=False,
+    ):
+        while True:
+            await self.connect(user_name, password)
+            if self._recv_task:
+                await asyncio.gather(self._recv_task)
+            await asyncio.sleep(0.5)
+            if not reconnect:
+                break
 
     async def login(
         self,
@@ -553,7 +580,6 @@ class Room(Connection):
                 await self._send_command("bm", _id_gen(), str(message_flags), message)
 
     async def _rcmd_ok(self, args):  # TODO
-        self._connected = True
         self._owner = User(args[0])
         self._puid = args[1]
         self._login_as = args[2]

@@ -66,7 +66,7 @@ class Socket:
         """
         try:
             while True:
-                await asyncio.sleep(60)
+                await asyncio.sleep(90)
                 if not self.connected:
                     break
                 await self._send_command("\r\n", terminator="\x00")

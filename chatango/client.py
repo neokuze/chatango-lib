@@ -76,6 +76,7 @@ class Client(EventHandler):
 
     async def _while_rooms(self):
         while True:
+            await asyncio.sleep(1)
             for room in self._rooms:
                 isconnected, canreconnect = self._rooms[room].check_connected()
                 if canreconnect and not isconnected:
