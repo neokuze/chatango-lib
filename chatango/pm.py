@@ -45,7 +45,6 @@ class Socket:
             self._connection.close()
             await self._connection.wait_closed()
         self._reset()
-        await self.handler._call_event("pm_disconnect", self)
 
     async def _send_command(self, *args, terminator="\r\n\0"):
         if self._first_command:
@@ -93,9 +92,10 @@ class Socket:
                             logger.debug(f" IN {cmd}")
                             await self._do_process(cmd)
             else:
-                asyncio.create_task(self._disconnect())
+                await self._disconnect()
                 break
             await asyncio.sleep(0.0001)
+        await self.handler._call_event("pm_disconnect", self)
 
     async def _do_process(self, recv: str):
         """

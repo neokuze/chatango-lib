@@ -5,6 +5,7 @@ import html
 import sys
 import time
 import enum
+import re
 import logging
 import traceback
 import urllib.request as urlreq
@@ -21,7 +22,7 @@ from .utils import (
 )
 from .message import Message, MessageFlags, _process, message_cut
 from .user import User, ModeratorFlags, AdminFlags
-from .exceptions import AlreadyConnectedError
+from .exceptions import AlreadyConnectedError, InvalidRoomNameError
 from .handler import EventHandler
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,6 @@ class Connection:
         if self._connection:
             await self._connection.close()
         self._reset()
-        await self.handler._call_event("disconnect", self)
 
     async def _send_command(self, *args, terminator="\r\n\0"):
         message = ":".join(args) + terminator
@@ -127,11 +127,12 @@ class Connection:
                 or message.type == aiohttp.WSMsgType.CLOSED
                 or message.type == aiohttp.WSMsgType.ERROR
             ):
-                asyncio.create_task(self._disconnect())
+                await self._disconnect()
                 break
             else:
                 logger.error(f"Unexpected aiohttp.WSMsgType: {message.type}")
             await asyncio.sleep(0.0001)
+        await self.handler._call_event("disconnect", self)
 
     async def _do_process(self, recv: str):
         """
@@ -164,6 +165,7 @@ class Room(Connection):
 
     def __init__(self, handler, name: str):
         super().__init__(handler)
+        self.assert_valid_name(name)
         self.name = name
         self.server = get_server(name)
         self._uid = gen_uid()
@@ -267,6 +269,12 @@ class Room(Connection):
         return sorted(
             [x[1] for x in list(self._userdict.values())], key=lambda z: z.name.lower()
         )
+
+    @classmethod
+    def assert_valid_name(cls, room_name: str):
+        expr = re.compile("^([a-z0-9-]{1,20})$")
+        if not expr.match(room_name):
+            raise InvalidRoomNameError(room_name)
 
     def check_connected(self):
         return (self._connected, self._reconnect)

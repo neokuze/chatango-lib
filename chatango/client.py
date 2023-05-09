@@ -1,11 +1,9 @@
 import asyncio
-import re
 import logging
 from typing import Coroutine, Dict, List, Optional
 
 from .pm import PM
 from .room import Room
-from .exceptions import NotConnectedError
 from .handler import EventHandler
 
 logger = logging.getLogger(__name__)
@@ -16,12 +14,20 @@ class Client(EventHandler):
         self, username: str = "", password: str = "", rooms: List[str] = [], pm=False
     ):
         self._tasks: List[asyncio.Task] = []
+        self.running = False
         self.rooms: Dict[str, Room] = {}
         self.pm: Optional[PM] = None
         self.use_pm = pm
         self.initial_rooms: List[str] = rooms
         self.username = username
         self.password = password
+
+    def __dir__(self):
+        return [
+            x
+            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
+            if x[0] != "_"
+        ]
 
     def add_task(self, coro: Coroutine):
         self._tasks.append(asyncio.create_task(coro))
@@ -37,9 +43,10 @@ class Client(EventHandler):
                 await asyncio.sleep(0.1)
 
     async def run(self, *, forever=False):
+        self.running = True
         await self._call_event("init")
 
-        if not self.use_pm and not self.initial_rooms:
+        if not forever and not self.use_pm and not self.initial_rooms:
             logger.error("No rooms or PM to join. Exiting.")
             return
 
@@ -51,6 +58,7 @@ class Client(EventHandler):
 
         await self._call_event("start")
         await self._task_loop(forever)
+        self.running = False
 
     def join_pm(self):
         if not self.username or not self.password:
@@ -78,6 +86,7 @@ class Client(EventHandler):
     def join_room(self, room_name: str):
         if self.in_room(room_name):
             logger.error(f"Already joined room {room_name}")
+            # Attempt to reconnect existing room?
             return
 
         self.add_task(self._watch_room(room_name))
@@ -86,6 +95,7 @@ class Client(EventHandler):
         room = Room(self, room_name)
         self.rooms[room_name] = room
         await room.listen(self.username, self.password, reconnect=True)
+        # Client level reconnect?
         self.rooms.pop(room_name, None)
 
     async def leave_room(self, room_name: str):
@@ -93,134 +103,15 @@ class Client(EventHandler):
         if room:
             await room.disconnect()
 
-
-class OldClient(EventHandler):
-    def __init__(self):
-        self.pm = None
-        self.user = None
-
-        self._running = False
-        self.silent = 2
-        self._rooms = {}
-        self.errors = []
-        self.__rcopy = {}
-        self._default_user_name = None
-        self._default_password = None
-
-    def __dir__(self):
-        return [
-            x
-            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
-            if x[0] != "_"
-        ]
-
-    async def join(self, room_name: str, anon=False) -> Optional[Room]:
-        """
-        @parasm room_name: str
-        returns a Room object if roomname is valid
-        else is going to return None
-        """
-        room_name = room_name.lower()
-        expr = re.compile("^([a-z0-9-]{1,20})$")
-        if not expr.match(room_name):
-            return None
-        if room_name in self._rooms:
-            isconnected, canreconnect = self._rooms[room_name].check_connected()
-            if not isconnected and canreconnect:
-                await self.leave(room_name, True)
-                self.check_rooms(room_name)
-                await asyncio.sleep(0.2)
-        room = Room(self, room_name)
-        _accs = [
-            self._default_user_name if not anon else "",
-            self._default_password if not anon else "",
-        ]
-        await asyncio.wait_for(room.connect(*_accs), 6.0)
-
-    async def leave(self, room_name: str, reconnect: bool):
-        room_name = room_name.lower()
-        if room_name not in self._rooms:
-            return f"{False if NotConnectedError(room_name) else True}"
-        # has to be in the dict until it's fully disconnected
-        if room_name in self._rooms and self._rooms[room_name]._connection is not None:
-            await self._rooms[room_name].cancel()
-            if room_name in self._rooms:
-                del self._rooms[room_name]
-            await self._call_event("disconnect", room_name)
-            if reconnect:
-                if self._rooms[room_name].reconnect:
-                    self.set_timeout(1, self.join, room_name)
-            return True
-
-    async def start(self, user=None, passwd=None, pm=None):
-        self._running = True
-        await self._call_event("init")
-        if pm or self._default_pm == True:
-            await self.pm_start(user, passwd)
-        await self._call_event("start")
-        self._reconnection = asyncio.create_task(self._while_rooms())
-
-    async def _while_rooms(self):
-        while True:
-            await asyncio.sleep(1)
-            for room in self._rooms:
-                isconnected, canreconnect = self._rooms[room].check_connected()
-                if canreconnect and not isconnected:
-                    await self.leave(room, True)
-            if not self._running:
-                break
-
-    async def pm_start(self, user=None, passwd=None):
-        self.pm = PM(self)
-        await self.pm.connect(
-            user or self._default_user_name, passwd or self._default_password
-        )
-
-    @property
-    def running(self):
-        return self._running
-
-    @property
-    def rooms(self):
-        return [self._rooms[x] for x in self._rooms]
-
-    def get_room(self, room_name: str):
-        if room_name in [room.name for room in self.rooms]:
-            for room in self.rooms:
-                if room.name == room_name:
-                    return room
-        return False
-
-    def check_rooms(self, room):
-        for key in self._rooms:
-            if key != room:
-                self.__rcopy[key] = self._rooms[key]
-        self._rooms.clear()
-        self._rooms.update(self.__rcopy)
-        self.__rcopy.clear()
-        return True
-
-    def default_user(
-        self,
-        user_name: str,
-        password: Optional[str] = None,
-        pm=True,
-    ):
-        self._default_user_name = user_name
-        self._default_password = password
-        self._default_pm = pm
-
     async def stop(self):
-        self._reconnection.cancel()
-        if self.pm and self.pm._connected == True:
-            await self.pm.cancel()
-            print(f"Disconnected from {self.pm}")
-        for room in self.rooms:
-            await self.leave(room.name, False)
-        self._running = False
+        if self.pm:
+            await self.leave_pm()
+
+        for room_name in self.rooms:
+            await self.leave_room(room_name)
 
     async def enable_bg(self, active=True):
         """Enable background if available."""
         self.bgmode = active
-        for room in self._rooms:
-            await self._rooms[room].set_bg_mode(int(active))
+        for _, room in self.rooms.items():
+            await room.set_bg_mode(int(active))
