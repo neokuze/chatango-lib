@@ -162,8 +162,8 @@ class Room(Connection):
             if x[0] != "_"
         ]
 
-    def __init__(self, client, name: str):
-        super().__init__(client)
+    def __init__(self, handler, name: str):
+        super().__init__(handler)
         self.name = name
         self.server = get_server(name)
         self._uid = gen_uid()
@@ -610,7 +610,7 @@ class Room(Connection):
     async def _rcmd_i(self, args):
         """history past messages"""
         msg = await _process(self, args)
-        msg.attach(self, msg._id)
+        msg.attach(self, msg.id)
         self._add_history(msg)
 
     async def _rcmd_b(self, args):  # TODO
@@ -624,13 +624,13 @@ class Room(Connection):
                     self._del_dict[message_inwait].update({"i": msg})
         if args[5] in self._uqueue:
             msgid = self._uqueue.pop(args[5])
-            if msg._user != self._user:
+            if msg.user != self._user:
                 pass
             msg.attach(self, msgid)
             self._add_history(msg)
             await self.handler._call_event("message", msg)
         else:
-            self._mqueue[msg._id] = msg
+            self._mqueue[msg.id] = msg
 
     async def _rcmd_premium(self, args):  # TODO
         if self._bgmode and (
@@ -646,7 +646,7 @@ class Room(Connection):
         """attachs and call event on_message"""
         if args[0] in self._mqueue:
             msg = self._mqueue.pop(args[0])
-            if msg._user != self._user:
+            if msg.user != self._user:
                 pass
             msg.attach(self, args[1])
             self._add_history(msg)

@@ -1,10 +1,9 @@
-import html
 import re
-import string
 import time
 import enum
+from typing import Optional
 
-from .utils import gen_uid, get_anon_name, _clean_message, _parseFont, Styles
+from .utils import get_anon_name, _clean_message, _parseFont
 from .user import User
 
 
@@ -29,16 +28,16 @@ Fonts = {
     '0': 'arial', '1': 'comic', '2': 'georgia', '3': 'handwriting', '4': 'impact',
     '5': 'palatino', '6': 'papirus', '7': 'times', '8': 'typewriter'
     }
-    
-class Message(object):  # base
+
+class Message():
     def __init__(self):
-        self._user = None
-        self._room = None
-        self._styles = None
-        self._channel = None
-        self._time = 0
-        self._body = str()
-        self._raw = str()
+        self.user: Optional[User] = None
+        self.room = None
+        self.time = 0.0
+        self.body = str()
+        self.raw = str()
+        self.styles = None
+        self.channel: Optional[Channel] = None
 
     def __dir__(self):
         return [x for x in
@@ -48,86 +47,30 @@ class Message(object):  # base
     def __repr__(self):
         return f"<Message {self.room} {self.user} \"{self.body}\">"
 
-    @property
-    def user(self):
-        return self._user
-
-    @property
-    def channel(self):
-        return self._channel
-
-    @property
-    def room(self):
-        return self._room
-
-    @property
-    def time(self):
-        return self._time
-
-    @property
-    def body(self):
-        return self._body
-
-    @property
-    def raw(self):
-        return self._raw
-
-    @property
-    def styles(self):
-        return self._styles
-
-class PMBase(Message):
+class PMMessage(Message):
     def __init__(self):
-        self._msgoff = False
-        self._flags = str(0)
-        
-    @property
-    def msgoff(self):
-        return self._msgoff
+        self.msgoff = False
+        self.flags = str(0)
 
 
-class RoomBase(Message):
+class RoomMessage(Message):
     def __init__(self, ):
-        self._id = None
-        self._puid = int()
-        self._ip = str()
-        self._unid = str()
-        self._flags = dict()
-        self._mentions = list()
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def mentions(self):
-        return self._mentions
-
-    @property
-    def puid(self):
-        return self._puid
-
-    @property
-    def unid(self):
-        return self._unid
-
-    @property
-    def flags(self):
-        return self._flags
-
-    @property
-    def ip(self):
-        return self._ip
+        self.id = None
+        self.puid = str()
+        self.ip = str()
+        self.unid = str()
+        self.flags = 0
+        self.mentions = list()
 
     def attach(self, room, msgid):
-        if self._id is not None:
-            self._room = room
-            self._id = msgid
-            self._room._msgs.update({id: self})
+        if self.id is not None:
+            self.room = room
+            self.id = msgid
+            self.room._msgs.update({id: self})
 
     def detach(self):
-        if self._id is not None and self._id in self._room._msgs:
-            self._room._msgs.pop(self._id)
+        if self.id is not None and self.id in self.room._msgs:
+            self.room._msgs.pop(self.id)
 
 
 async def _process(room, args):
@@ -135,18 +78,17 @@ async def _process(room, args):
     _time = float(args[0]) - room._correctiontime
     name, tname, puid, unid, msgid, ip, flags = args[1:8]
     body = ":".join(args[9:])
-    msg = RoomBase()
-    msg._room = room
-    msg._time = float(_time)
-    msg._puid = str(puid)
-    msg._tempname = tname
-    msg._id = msgid
-    msg._unid = unid
-    msg._ip = ip
-    msg._raw = body
+    msg = RoomMessage()
+    msg.room = room
+    msg.time = float(_time)
+    msg.puid = str(puid)
+    msg.id = msgid
+    msg.unid = unid
+    msg.ip = ip
+    msg.raw = body
     body, n, f = _clean_message(body)
     strip_body = " ".join(body.split(" ")[:-1]) + " " + body.split(" ")[-1].replace("\n", "")
-    msg._body = strip_body.strip()
+    msg.body = strip_body.strip()
     name_color = None
     isanon = False
     if name == "":
@@ -164,23 +106,23 @@ async def _process(room, args):
             name_color = n
         else:
             name_color = None
-    msg._user = User(name, ip=ip, isanon=isanon)
-    msg._user._styles._name_color = name_color
-    msg._styles = msg._user._styles
-    msg._styles._font_size, msg._styles._font_color, msg._styles._font_face = _parseFont(f.strip())
-    if msg._styles._font_size == None: msg._styles._font_size=11
-    msg._flags = MessageFlags(int(flags))
+    msg.user = User(name, ip=ip, isanon=isanon)
+    msg.user._styles._name_color = name_color
+    msg.styles = msg.user._styles
+    msg.styles._font_size, msg.styles._font_color, msg.styles._font_face = _parseFont(f.strip())
+    if msg.styles._font_size == None: msg.styles._font_size=11
+    msg.flags = MessageFlags(int(flags))
     if MessageFlags.BG_ON in msg.flags:
         if MessageFlags.PREMIUM in msg.flags:
-            msg._styles._use_background = 1
-    msg._mentions = mentions(msg._body, room)
-    msg._channel = channel(msg._room, msg._user)
-    ispremium = MessageFlags.PREMIUM in msg._flags
-    if msg._user.ispremium != ispremium:
-        evt = msg._user._ispremium != None and ispremium != None and _time > time.time() - 5
-        msg._user._ispremium = ispremium
+            msg.styles._use_background = 1
+    msg.mentions = mentions(msg.body, room)
+    msg.channel = Channel(msg.room, msg.user)
+    ispremium = MessageFlags.PREMIUM in msg.flags
+    if msg.user.ispremium != ispremium:
+        evt = msg.user._ispremium != None and ispremium != None and _time > time.time() - 5
+        msg.user._ispremium = ispremium
         if evt:
-            await room.client._call_event("premium_change", msg._user, ispremium)
+            await room.handler._call_event("premium_change", msg.user, ispremium)
     return msg
 
 
@@ -194,17 +136,18 @@ async def _process_pm(room, args):
     body, n, f = _clean_message(rawmsg, pm=True)
     name_color = n or None
     font_size, font_color, font_face = _parseFont(f)
-    msg = PMBase()
-    msg._room = room
-    msg._user = user
-    msg._time = mtime
-    msg._body = body
-    msg._styles = msg._user._styles
-    msg._styles._name_color = name_color
-    msg._styles._font_size = font_size
-    msg._styles._font_color = font_color
-    msg._styles._font_face = font_face
-    msg._channel = channel(msg._room, msg._user)
+    msg = PMMessage()
+    msg.room = room
+    msg.user = user
+    msg.time = mtime
+    msg.body = body
+    msg.raw = rawmsg
+    msg.styles = msg.user._styles
+    msg.styles._name_color = name_color
+    msg.styles._font_size = font_size
+    msg.styles._font_color = font_color
+    msg.styles._font_face = font_face
+    msg.channel = Channel(msg.room, msg.user)
     return msg
 
 def message_cut(message, lenth):
@@ -222,7 +165,7 @@ def mentions(body, room):
                     t.append(participant)
     return t
 
-class channel:
+class Channel:
     def __init__(self, room, user):
         self.is_pm = True if room.name == "<PM>" else False
         self.user = user
@@ -233,19 +176,19 @@ class channel:
                 set(list(self.__dict__.keys()) + list(dir(type(self)))) if
                 x[0] != '_']
 
-    async def send(self, message, use_html=False):
+    async def send_message(self, message, use_html=False):
         messages = message_cut(message, self.room._maxlen)
         for message in messages:
             if self.is_pm:
-                await self.room.client.pm.send_message(self.user.name, message, use_html=use_html)
+                await self.room.send_message(self.user.name, message, use_html=use_html)
             else:
                 await self.room.send_message(message, use_html=use_html)
 
     async def send_pm(self, message):
         self.is_pm = True
-        await self.send(message)
+        await self.send_message(message)
 
-def format_videos(user, pmmessage): pass #TODO TESTING
+# def format_videos(user, pmmessage): pass #TODO TESTING
 #     msg = pmmessage
 #     tag = 'i'
 #     r = []
