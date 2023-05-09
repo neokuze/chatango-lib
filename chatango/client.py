@@ -254,24 +254,3 @@ class OldClient(EventHandler):
     #         else:
     #             return f"img{success}"
     #     return None
-
-    # def set_interval(self, tiempo, funcion, *args, **kwargs):
-    #     """
-    #     Llama a una función cada intervalo con los argumentos indicados
-    #     @param funcion: La función que será invocada
-    #     @type tiempo int
-    #     @param tiempo:intervalo
-    #     """
-    #     task = Task(tiempo, funcion, True, *args, **kwargs)
-
-    #     return task
-
-    # def set_timeout(self, tiempo, funcion, *args, **kwargs):
-    #     """
-    #     Llama a una función cada intervalo con los argumentos indicados
-    #     @param tiempo: Tiempo en segundos hasta que se ejecute la función
-    #     @param funcion: La función que será invocada
-    #     """
-    #     task = Task(tiempo, funcion, False, *args, **kwargs)
-
-    #     return task

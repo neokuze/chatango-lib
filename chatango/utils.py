@@ -92,65 +92,6 @@ def get_aiohttp_session():
         _aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
     return _aiohttp_session
 
-class Task:
-    ALIVE = False
-    _INSTANCES = set()
-    _LOCK = asyncio.Lock()
-    _THREAD = None
-
-    async def _heartbeat():
-        if Task.ALIVE:
-            # Only one call at a time for this method is allowed
-            return
-        Task.ALIVE = True
-        while Task.ALIVE:
-            await asyncio.sleep(0.01)
-            await Task._tick()
-
-    @staticmethod
-    async def _tick():
-        now = time.time()
-        for task in list(Task._INSTANCES):
-            try:
-                if task.target <= now:
-                    await task.func(*task.args, **task.kw)
-                    if task.isInterval:
-                        task.target = task.timeout + now
-                    else:
-                        task.cancel()
-            except Exception as e:
-                print("Task error {}: {}".format(task.func, e))
-                task.cancel()
-        if not Task._INSTANCES:
-
-            Task.ALIVE = False
-
-    def __init__(self, timeout, func=None, interval=False, *args, **kw):
-        """
-        Inicia una tarea nueva
-        @param mgr: El dueño de esta tarea y el que la mantiene con vida
-        """
-        self.mgr = None
-        self.func = func
-        self.timeout = timeout
-        self.target = time.time() + timeout
-        self.isInterval = interval
-        self.args = args
-        self.kw = kw
-        Task._INSTANCES.add(self)
-        if not Task.ALIVE:
-            Task._THREAD = asyncio.create_task(Task._heartbeat())
-
-    def cancel(self):
-        """Cancel task"""
-        if self in Task._INSTANCES:
-            Task._INSTANCES.remove(self)
-
-    def __repr__(self):
-        interval = "Interval" if self.isInterval else "Timeout"
-        return f"<Task {interval}: {self.timeout} >"
-
-
 async def get_token(user_name, passwd):
     chatango, token = ["http://chatango.com/login", "auth.chatango.com"], None
     payload = {
