@@ -8,6 +8,7 @@ import asyncio
 import aiohttp
 import urllib
 import logging
+from typing import Tuple
 
 # fmt: off
 specials = {
@@ -222,7 +223,7 @@ def gen_uid() -> str:
     return str(random.randrange(10**15, 10**16))
 
 
-def _clean_message(msg: str, pm: bool = False) -> [str, str, str]:  # TODO
+def _clean_message(msg: str, pm: bool = False) -> Tuple[str, str, str]:
     n = re.search("<n(.*?)/>", msg)
     tag = pm and "g" or "f"
     f = re.search("<" + tag + "(.*?)>", msg)
@@ -293,7 +294,7 @@ def _fontFormat(text):
     return text
 
 
-def _parseFont(f: str, pm=False) -> (str, str, str):
+def _parseFont(f: str, pm=False) -> Tuple[str, str, str]:
     """
     Lee el contendido de un etiqueta f y regresa
     tamaño color y fuente (en ese orden)
@@ -306,8 +307,9 @@ def _parseFont(f: str, pm=False) -> (str, str, str):
         regex = r'x(\d{1,2})?([a-fA-F0-9]{6}|[a-fA-F0-9]{3})="(.*?)"'
     match = re.search(regex, f)
     if not match:
-        return None, None, None
-    return match.groups()
+        return "11", "000000", "0"
+    else:
+        return match.groups()
 
 
 def _videoImagePMFormat(text):
