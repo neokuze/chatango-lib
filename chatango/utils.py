@@ -9,6 +9,7 @@ import aiohttp
 import urllib
 import logging
 
+# fmt: off
 specials = {
     'mitvcanal': 56, 'animeultimacom': 34, 'cricket365live': 21,
     'pokemonepisodeorg': 22, 'animelinkz': 20, 'sport24lt': 56,
@@ -38,6 +39,8 @@ tsweights = [
     [77, 116], [78, 116], [79, 116], [80, 116],
     [81, 116], [82, 116], [83, 116], [84, 116]
 ]
+# fmt: on
+
 
 def get_server(group):
     """
@@ -72,23 +75,32 @@ def get_server(group):
                 break
     return f"s{sn}.chatango.com"
 
+
 def public_attributes(obj):
-    return [x for x in set(list(obj.__dict__.keys()) + list(dir(type(obj)))) if x[0] != "_"]
+    return [
+        x for x in set(list(obj.__dict__.keys()) + list(dir(type(obj)))) if x[0] != "_"
+    ]
+
 
 async def on_request_exception(session, context, params):
-    logging.getLogger('aiohttp.client').debug(f'on request exception: <{params}>')
+    logging.getLogger("aiohttp.client").debug(f"on request exception: <{params}>")
+
 
 def trace():
     trace_config = aiohttp.TraceConfig()
     trace_config.on_request_exception.append(on_request_exception)
     return trace_config
 
+
 _aiohttp_session = None
+
+
 def get_aiohttp_session():
     global _aiohttp_session
     if _aiohttp_session is None:
         _aiohttp_session = aiohttp.ClientSession(trace_configs=[trace()])
     return _aiohttp_session
+
 
 async def get_token(user_name, passwd):
     chatango, token = ["http://chatango.com/login", "auth.chatango.com"], None
@@ -96,12 +108,12 @@ async def get_token(user_name, passwd):
         "user_id": str(user_name).lower(),
         "password": str(passwd),
         "storecookie": "on",
-        "checkerrors": "yes"}
+        "checkerrors": "yes",
+    }
     # Use fresh session to retrieve auth cookies
     async with aiohttp.ClientSession().post(chatango[0], data=payload) as resp:
         if chatango[1] in resp.cookies:
-            token = str(resp.cookies[chatango[1]]).split(
-                "=")[1].split(";")[0]
+            token = str(resp.cookies[chatango[1]]).split("=")[1].split(";")[0]
     return token
 
 
@@ -110,30 +122,46 @@ def multipart(data, files, boundary=None):
 
     def escape_quote(s):
         return s.replace('"', '\\"')
+
     if boundary == None:
-        boundary = ''.join(
-            random.choice(string.digits + string.ascii_letters) for x in range(30))
+        boundary = "".join(
+            random.choice(string.digits + string.ascii_letters) for x in range(30)
+        )
     for nombre, valor in data.items():
-        lineas.extend(('--%s' % boundary,
-                       'Content-Disposition: form-data; name="%s"' % nombre,
-                       '', str(valor)))
+        lineas.extend(
+            (
+                "--%s" % boundary,
+                'Content-Disposition: form-data; name="%s"' % nombre,
+                "",
+                str(valor),
+            )
+        )
     for nombre, valor in files.items():
-        filename = valor['filename']
-        if 'mimetype' in valor:
-            mimetype = valor['mimetype']
+        filename = valor["filename"]
+        if "mimetype" in valor:
+            mimetype = valor["mimetype"]
         else:
-            mimetype = mimetypes.guess_type(filename)[
-                0] or 'application/octet-stream'
-        lineas.extend(('--%s' % boundary,
-                       'Content-Disposition: form-data; name="%s"; '
-                       'filename="%s"' % (
-                           escape_quote(nombre), escape_quote(filename)),
-                       'Content-Type: %s' % mimetype, '', valor['content']))
-    lineas.extend(('--%s--' % boundary, '',))
-    body = '\r\n'.join(lineas)
+            mimetype = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        lineas.extend(
+            (
+                "--%s" % boundary,
+                'Content-Disposition: form-data; name="%s"; '
+                'filename="%s"' % (escape_quote(nombre), escape_quote(filename)),
+                "Content-Type: %s" % mimetype,
+                "",
+                valor["content"],
+            )
+        )
+    lineas.extend(
+        (
+            "--%s--" % boundary,
+            "",
+        )
+    )
+    body = "\r\n".join(lineas)
     headers = {
-        'Content-Type':   'multipart/form-data; boundary=%s' % boundary,
-        'Content-Length': str(len(body))
+        "Content-Type": "multipart/form-data; boundary=%s" % boundary,
+        "Content-Length": str(len(body)),
     }
     return body, headers
 
@@ -167,6 +195,7 @@ def multipart(data, files, boundary=None):
     #             return f"img{success}"
     #     return None
 
+
 async def sessionget(session: aiohttp.ClientSession, url: str):
     async with session.get(url) as resp:
         assert resp.status == 200
@@ -190,12 +219,12 @@ def gen_uid() -> str:
     """
     Generate an uid
     """
-    return str(random.randrange(10 ** 15, 10 ** 16))
+    return str(random.randrange(10**15, 10**16))
 
 
 def _clean_message(msg: str, pm: bool = False) -> [str, str, str]:  # TODO
     n = re.search("<n(.*?)/>", msg)
-    tag = pm and 'g' or 'f'
+    tag = pm and "g" or "f"
     f = re.search("<" + tag + "(.*?)>", msg)
     msg = re.sub("<" + tag + ".*?>" + '|"<i s=sm://(.*)"', "", msg)
     if n:
@@ -204,8 +233,8 @@ def _clean_message(msg: str, pm: bool = False) -> [str, str, str]:  # TODO
         f = f.group(1)
     msg = re.sub("<n.*?/>", "", msg)
     msg = _strip_html(msg)
-    msg = html.unescape(msg).replace('\r', '\n')
-    return msg, n or '', f or ''
+    msg = html.unescape(msg).replace("\r", "\n")
+    return msg, n or "", f or ""
 
 
 def _strip_html(msg: str) -> str:
@@ -226,17 +255,17 @@ def _strip_html(msg: str) -> str:
 
 
 def _id_gen():
-    return ''.join(random.choice(string.ascii_uppercase) for i in range(4)).lower()
+    return "".join(random.choice(string.ascii_uppercase) for i in range(4)).lower()
 
 
 def get_anon_name(tssid: str, puid: str) -> str:
     puid = puid.zfill(8)[4:8]
     ts = str(tssid)
     if not ts or len(ts) < 4:
-        ts = '3452'
+        ts = "3452"
     else:
-        ts = ts.split('.')[0][-4:]
-    __reg5 = ''
+        ts = ts.split(".")[0][-4:]
+    __reg5 = ""
     __reg1 = 0
     while __reg1 < len(puid):
         __reg4 = int(puid[__reg1])
@@ -244,21 +273,25 @@ def get_anon_name(tssid: str, puid: str) -> str:
         __reg2 = str(__reg4 + __reg3)
         __reg5 += __reg2[-1:]
         __reg1 += 1
-    return 'anon' + __reg5.zfill(4)
+    return "anon" + __reg5.zfill(4)
+
 
 def _fontFormat(text):
     # TODO check
     """Converts */_ into whattsap like formats"""
-    formats = {'/': 'I', '\*': 'B', '_': 'U'}
+    formats = {"/": "I", "\*": "B", "_": "U"}
     for f in formats:
         f1, f2 = set(formats.keys()) - {f}
         # find = ' <?[BUI]?>?[{0}{1}]?{2}(.+?[\S]){2}'.format(f1, f2, f+'{1}')
-        find = ' <?[BUI]?>?[{0}{1}]?{2}(.+?[\S]?[{2}]?){2}[{0}{1}]?[\s]'.format(f1, f2, f)
-        for x in re.findall(find, ' ' + text + ' '):
+        find = " <?[BUI]?>?[{0}{1}]?{2}(.+?[\S]?[{2}]?){2}[{0}{1}]?[\s]".format(
+            f1, f2, f
+        )
+        for x in re.findall(find, " " + text + " "):
             original = f[-1] + x + f[-1]
-            cambio = '<' + formats[f] + '>' + x + '</' + formats[f] + '>'
+            cambio = "<" + formats[f] + ">" + x + "</" + formats[f] + ">"
             text = text.replace(original, cambio)
     return text
+
 
 def _parseFont(f: str, pm=False) -> (str, str, str):
     """
@@ -276,13 +309,14 @@ def _parseFont(f: str, pm=False) -> (str, str, str):
         return None, None, None
     return match.groups()
 
+
 def _videoImagePMFormat(text):
     """Returns text with formatted video and image for PM sending"""
-    for x in re.findall('(http[s]?://[^\s]+outube.com/watch\?v=([^\s]+))', text):
+    for x in re.findall("(http[s]?://[^\s]+outube.com/watch\?v=([^\s]+))", text):
         original = x[0]
         cambio = '<i s="vid://yt:%s" w="126" h="96"/>' % x[1]
         text = text.replace(original, cambio)
-    for x in re.findall('(http[s]?://[\S]+outu.be/([^\s]+))', text):
+    for x in re.findall("(http[s]?://[\S]+outu.be/([^\s]+))", text):
         original = x[0]
         cambio = '<i s="vid://yt:%s" w="126" h="96"/>' % x[1]
         text = text.replace(original, cambio)
@@ -290,8 +324,16 @@ def _videoImagePMFormat(text):
         text = text.replace(x, '<i s="%s" w="70.45" h="125"/>' % x)
     return text
 
+
 class Styles:
-    def __init__(self, name_color=None, font_color=None, font_face=None, font_size=None, use_background=None):
+    def __init__(
+        self,
+        name_color=None,
+        font_color=None,
+        font_face=None,
+        font_size=None,
+        use_background=None,
+    ):
         self._name_color = name_color if name_color else str("000000")
         self._font_color = font_color if font_color else str("000000")
         self._font_size = font_size if font_size else 11
@@ -300,15 +342,19 @@ class Styles:
 
         self._blend_name = None
         self._bgstyle = {
-            'align': '', 'bgc': '',
-            'bgalp': '', 'hasrec': '0',
-            'ialp': '', 'isvid': '0',
-            'tile': '0', 'useimg': '0'
+            "align": "",
+            "bgc": "",
+            "bgalp": "",
+            "hasrec": "0",
+            "ialp": "",
+            "isvid": "0",
+            "tile": "0",
+            "useimg": "0",
         }
         self._profile = dict(
-            about=dict(age='', last_change='',
-                       gender='?', location='', d='', body=''),
-            full=dict())
+            about=dict(age="", last_change="", gender="?", location="", d="", body=""),
+            full=dict(),
+        )
 
     def __dir__(self):
         return public_attributes(self)
@@ -322,8 +368,9 @@ class Styles:
 
     @property
     def fullhtml(self):
-        o = html.escape(urllib.parse.unquote(
-            self._profile["full"] or '')).replace('\r\n', '\n')
+        o = html.escape(urllib.parse.unquote(self._profile["full"] or "")).replace(
+            "\r\n", "\n"
+        )
         if o:
             return o
         else:
@@ -331,8 +378,9 @@ class Styles:
 
     @property
     def fullmini(self):
-        o = html.escape(urllib.parse.unquote(
-            self._profile["about"]["body"] or '')).replace('\r\n', '\n')
+        o = html.escape(
+            urllib.parse.unquote(self._profile["about"]["body"] or "")
+        ).replace("\r\n", "\n")
         if o:
             return o
         else:
@@ -371,8 +419,8 @@ class Styles:
 
 def _convert_dict(src):
     r = {}
-    m = src.split(' ')
+    m = src.split(" ")
     for w in m:
-        k, v = w.split('=')
+        k, v = w.split("=")
         r.update({k: v})
     return r
