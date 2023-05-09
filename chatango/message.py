@@ -24,12 +24,21 @@ class MessageFlags(enum.IntFlag):
     CHANNEL_PINK = 1 << 14
     CHANNEL_MOD = 1 << 15
 
-Fonts = {
-    '0': 'arial', '1': 'comic', '2': 'georgia', '3': 'handwriting', '4': 'impact',
-    '5': 'palatino', '6': 'papirus', '7': 'times', '8': 'typewriter'
-    }
 
-class Message():
+Fonts = {
+    "0": "arial",
+    "1": "comic",
+    "2": "georgia",
+    "3": "handwriting",
+    "4": "impact",
+    "5": "palatino",
+    "6": "papirus",
+    "7": "times",
+    "8": "typewriter",
+}
+
+
+class Message:
     def __init__(self):
         self.user: Optional[User] = None
         self.room = None
@@ -40,12 +49,15 @@ class Message():
         self.channel: Optional[Channel] = None
 
     def __dir__(self):
-        return [x for x in
-                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
-                x[0] != '_']
+        return [
+            x
+            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
+            if x[0] != "_"
+        ]
 
     def __repr__(self):
-        return f"<Message {self.room} {self.user} \"{self.body}\">"
+        return f'<Message {self.room} {self.user} "{self.body}">'
+
 
 class PMMessage(Message):
     def __init__(self):
@@ -54,7 +66,7 @@ class PMMessage(Message):
 
 
 class RoomMessage(Message):
-    def __init__(self, ):
+    def __init__(self):
         self.id = None
         self.puid = str()
         self.ip = str()
@@ -87,14 +99,17 @@ async def _process(room, args):
     msg.ip = ip
     msg.raw = body
     body, n, f = _clean_message(body)
-    strip_body = " ".join(body.split(" ")[:-1]) + " " + body.split(" ")[-1].replace("\n", "")
+    strip_body = (
+        " ".join(body.split(" ")[:-1]) + " " + body.split(" ")[-1].replace("\n", "")
+    )
     msg.body = strip_body.strip()
     name_color = None
     isanon = False
     if name == "":
         isanon = True
         if not tname:
-            if n in ['None']: n = None
+            if n in ["None"]:
+                n = None
             if not isinstance(n, type(None)):
                 name = get_anon_name(n, puid)
             else:
@@ -109,8 +124,11 @@ async def _process(room, args):
     msg.user = User(name, ip=ip, isanon=isanon)
     msg.user._styles._name_color = name_color
     msg.styles = msg.user._styles
-    msg.styles._font_size, msg.styles._font_color, msg.styles._font_face = _parseFont(f.strip())
-    if msg.styles._font_size == None: msg.styles._font_size=11
+    msg.styles._font_size, msg.styles._font_color, msg.styles._font_face = _parseFont(
+        f.strip()
+    )
+    if msg.styles._font_size == None:
+        msg.styles._font_size = 11
     msg.flags = MessageFlags(int(flags))
     if MessageFlags.BG_ON in msg.flags:
         if MessageFlags.PREMIUM in msg.flags:
@@ -119,7 +137,11 @@ async def _process(room, args):
     msg.channel = Channel(msg.room, msg.user)
     ispremium = MessageFlags.PREMIUM in msg.flags
     if msg.user.ispremium != ispremium:
-        evt = msg.user._ispremium != None and ispremium != None and _time > time.time() - 5
+        evt = (
+            msg.user._ispremium != None
+            and ispremium != None
+            and _time > time.time() - 5
+        )
         msg.user._ispremium = ispremium
         if evt:
             await room.handler._call_event("premium_change", msg.user, ispremium)
@@ -132,7 +154,7 @@ async def _process_pm(room, args):
         name = args[2]
     user = User(name)
     mtime = float(args[3]) - room._correctiontime
-    rawmsg = ':'.join(args[5:])
+    rawmsg = ":".join(args[5:])
     body, n, f = _clean_message(rawmsg, pm=True)
     name_color = n or None
     font_size, font_color, font_face = _parseFont(f)
@@ -150,11 +172,13 @@ async def _process_pm(room, args):
     msg.channel = Channel(msg.room, msg.user)
     return msg
 
+
 def message_cut(message, lenth):
     result = []
-    for o in [message[x:x + lenth] for x in range(0, len(message), lenth)]:
+    for o in [message[x : x + lenth] for x in range(0, len(message), lenth)]:
         result.append(o)
-    return result 
+    return result
+
 
 def mentions(body, room):
     t = []
@@ -165,6 +189,7 @@ def mentions(body, room):
                     t.append(participant)
     return t
 
+
 class Channel:
     def __init__(self, room, user):
         self.is_pm = True if room.name == "<PM>" else False
@@ -172,9 +197,11 @@ class Channel:
         self.room = room
 
     def __dir__(self):
-        return [x for x in
-                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
-                x[0] != '_']
+        return [
+            x
+            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
+            if x[0] != "_"
+        ]
 
     async def send_message(self, message, use_html=False):
         messages = message_cut(message, self.room._maxlen)
@@ -187,6 +214,7 @@ class Channel:
     async def send_pm(self, message):
         self.is_pm = True
         await self.send_message(message)
+
 
 # def format_videos(user, pmmessage): pass #TODO TESTING
 #     msg = pmmessage
