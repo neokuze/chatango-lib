@@ -19,6 +19,7 @@ from .utils import (
     gen_uid,
     get_anon_name,
     _id_gen,
+    public_attributes,
 )
 from .message import Message, MessageFlags, _process, message_cut
 from .user import User, ModeratorFlags, AdminFlags
@@ -157,11 +158,7 @@ class Room(Connection):
     _BANDATA = namedtuple("BanData", ["unid", "ip", "target", "time", "src"])
 
     def __dir__(self):
-        return [
-            x
-            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
-            if x[0] != "_"
-        ]
+        return public_attributes(self)
 
     def __init__(self, handler, name: str):
         super().__init__(handler)

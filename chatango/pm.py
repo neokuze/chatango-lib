@@ -5,7 +5,7 @@ import logging
 import traceback
 from typing import Optional
 
-from .utils import get_token, gen_uid
+from .utils import get_token, gen_uid, public_attributes
 from .exceptions import AlreadyConnectedError
 from .handler import EventHandler
 from .user import User, Friend
@@ -136,11 +136,7 @@ class PM(Socket):
         self._history = list()
 
     def __dir__(self):
-        return [
-            x
-            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
-            if x[0] != "_"
-        ]
+        return public_attributes(self)
 
     def __repr__(self):
         return "<PM>"

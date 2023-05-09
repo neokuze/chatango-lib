@@ -3,7 +3,7 @@ import time
 import enum
 from typing import Optional
 
-from .utils import get_anon_name, _clean_message, _parseFont
+from .utils import get_anon_name, _clean_message, _parseFont, public_attributes
 from .user import User
 
 
@@ -49,11 +49,7 @@ class Message:
         self.channel: Optional[Channel] = None
 
     def __dir__(self):
-        return [
-            x
-            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
-            if x[0] != "_"
-        ]
+        return public_attributes(self)
 
     def __repr__(self):
         return f'<Message {self.room} {self.user} "{self.body}">'
@@ -197,11 +193,7 @@ class Channel:
         self.room = room
 
     def __dir__(self):
-        return [
-            x
-            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
-            if x[0] != "_"
-        ]
+        return public_attributes(self)
 
     async def send_message(self, message, use_html=False):
         messages = message_cut(message, self.room._maxlen)

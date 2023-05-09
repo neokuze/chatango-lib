@@ -6,7 +6,7 @@ import time
 import datetime
 from collections import deque
 
-from .utils import Styles, make_requests
+from .utils import Styles, make_requests, public_attributes
 
 
 class ModeratorFlags(enum.IntFlag):
@@ -74,11 +74,7 @@ class User:  # TODO a new format for users
         return cls._users.get(name) or User(name)
 
     def __dir__(self):
-        return [
-            x
-            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
-            if x[0] != "_"
-        ]
+        return public_attributes(self)
 
     def __repr__(self):
         return "<User: %s>" % self.showname

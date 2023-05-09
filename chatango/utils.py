@@ -1,14 +1,9 @@
-"""
-Utility module
-"""
 import asyncio
 import random
 import mimetypes
-import typing
 import html
 import re
 import string
-import time
 import asyncio
 import aiohttp
 import urllib
@@ -24,6 +19,7 @@ specials = {
     'dbzepisodeorg': 10, 'watch-dragonball': 8, 'peliculas-flv': 69,
     'tvanimefreak': 54, 'tvtvanimefreak': 54
 }
+
 # order matters
 tsweights = [
     [5, 75], [6, 75], [7, 75], [8, 75], [16, 75],
@@ -76,10 +72,12 @@ def get_server(group):
                 break
     return f"s{sn}.chatango.com"
 
+def public_attributes(obj):
+    return [x for x in set(list(obj.__dict__.keys()) + list(dir(type(obj)))) if x[0] != "_"]
 
 async def on_request_exception(session, context, params):
     logging.getLogger('aiohttp.client').debug(f'on request exception: <{params}>')
-    
+
 def trace():
     trace_config = aiohttp.TraceConfig()
     trace_config.on_request_exception.append(on_request_exception)
@@ -313,9 +311,7 @@ class Styles:
             full=dict())
 
     def __dir__(self):
-        return [x for x in
-                set(list(self.__dict__.keys()) + list(dir(type(self)))) if
-                x[0] != '_']
+        return public_attributes(self)
 
     def __repr__(self):
         return f"nc:{self.name_color} |bg:{self.use_background} |{self.default}"

@@ -5,6 +5,8 @@ from typing import Coroutine, Dict, List, Optional
 from .pm import PM
 from .room import Room
 from .handler import EventHandler
+from .utils import public_attributes
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +25,7 @@ class Client(EventHandler):
         self.password = password
 
     def __dir__(self):
-        return [
-            x
-            for x in set(list(self.__dict__.keys()) + list(dir(type(self))))
-            if x[0] != "_"
-        ]
+        return public_attributes(self)
 
     def add_task(self, coro: Coroutine):
         self._tasks.append(asyncio.create_task(coro))
