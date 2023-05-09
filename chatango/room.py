@@ -18,7 +18,6 @@ from .utils import (
     gen_uid,
     get_anon_name,
     _id_gen,
-    multipart,
 )
 from .message import Message, MessageFlags, _process, message_cut
 from .user import User, ModeratorFlags, AdminFlags
@@ -156,14 +155,6 @@ class Connection:
 class Room(Connection):
     _BANDATA = namedtuple("BanData", ["unid", "ip", "target", "time", "src"])
 
-    def __new__(cls, client, name: str):
-        name = name.lower()
-        if name not in client._rooms:
-            self = super(Room, cls).__new__(cls)
-            cls.__init__(self, client, name)
-            client._rooms[name] = self
-        return client._rooms[name]
-
     def __dir__(self):
         return [
             x
@@ -172,8 +163,6 @@ class Room(Connection):
         ]
 
     def __init__(self, client, name: str):
-        if name in client._rooms:
-            return
         super().__init__(client)
         self.name = name
         self.server = get_server(name)
@@ -198,7 +187,7 @@ class Room(Connection):
         self._maxlen = 2700
         self._history = deque(maxlen=self._maxlen + 300)
         self._bgmode = 0
-        self._reconnect = True
+        self._reconnect = False
         self._nomore = False
         self._connectiontime = None
         self.message_flags = 0
@@ -222,19 +211,6 @@ class Room(Connection):
             return MessageFlags.SHOW_STAFF_ICON.value
         else:
             return 0
-
-    @property
-    def change_reconnect(self):
-        before = self.reconnect
-        if self.reconnect == True:
-            self._reconnect = False
-        else:
-            self._reconnect = True
-        return "<before: {}, now: {}>".format(before, self.reconnect)
-
-    @property
-    def reconnect(self):
-        return self._reconnect
 
     @property
     def unbanlist(self):
@@ -293,7 +269,7 @@ class Room(Connection):
         )
 
     def check_connected(self):
-        return (self.connected, self.reconnect)
+        return (self._connected, self._reconnect)
 
     def set_font(
         self, name_color=None, font_color=None, font_size=None, font_face=None
@@ -522,33 +498,33 @@ class Room(Connection):
     async def disconnect(self):
         for x in self.userlist:
             x.removeSessionId(self, 0)
+        self._reconnect = False
         await self._disconnect()
 
     async def connect(
         self,
-        user_name: Optional[str] = None,
-        password: Optional[str] = None,
+        user_name: str = "",
+        password: str = "",
     ):
         if self.connected:
             raise AlreadyConnectedError(self.name)
         await self._connect(self.server)
-        await self._send_command(
-            "bauth", self.name, self._uid, user_name or "", password or ""
-        )
+        await self._send_command("bauth", self.name, self._uid, user_name, password)
 
     async def listen(
         self,
-        user_name: Optional[str] = None,
-        password: Optional[str] = None,
+        user_name: str = "",
+        password: str = "",
         reconnect=False,
     ):
+        self._reconnect = reconnect
         while True:
             await self.connect(user_name, password)
             if self._recv_task:
-                await asyncio.gather(self._recv_task)
-            await asyncio.sleep(0.5)
-            if not reconnect:
+                await self._recv_task
+            if not self._reconnect:
                 break
+            await asyncio.sleep(1)
 
     async def login(
         self,

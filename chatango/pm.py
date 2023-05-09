@@ -122,6 +122,7 @@ class PM(Socket):
         self.server = "c1.chatango.com"
         self.port = 443
         self.__token = None
+        self._reconnect = False
         self._correctiontime = 0
 
         # misc
@@ -179,16 +180,18 @@ class PM(Socket):
         await self._login(user_name, password)
 
     async def disconnect(self):
+        self._reconnect = False
         await self._disconnect()
 
     async def listen(self, user_name: str, password: str, reconnect=False):
+        self._reconnect = reconnect
         while True:
             await self.connect(user_name, password)
             if self._recv_task:
-                await asyncio.gather(self._recv_task)
-            await asyncio.sleep(0.5)
-            if not reconnect:
+                await self._recv_task
+            if not self._reconnect:
                 break
+            await asyncio.sleep(1)
 
     async def block(self, user):  # TODO
         if isinstance(user, User):
