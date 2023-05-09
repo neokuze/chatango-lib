@@ -138,6 +138,35 @@ def multipart(data, files, boundary=None):
     }
     return body, headers
 
+    # async def upload_image(self, path, return_url=False):
+    #     if self.user.isanon:
+    #         return None
+    #     with open(path, mode="rb") as f:
+    #         files = {
+    #             "filedata": {"filename": path, "content": f.read().decode("latin-1")}
+    #         }
+    #     data, headers = multipart(
+    #         dict(u=self.client._default_user_name, p=self.client._default_password),
+    #         files,
+    #     )
+    #     headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
+    #     async with get_aiohttp_session.post(
+    #         "http://chatango.com/uploadimg",
+    #         data=data.encode("latin-1"),
+    #         headers=headers,
+    #     ) as resp:
+    #         response = await resp.text()
+    #         if "success" in response:
+    #             success = response.split(":", 1)[1]
+    #     if success != None:
+    #         if return_url:
+    #             url = "http://ust.chatango.com/um/{}/{}/{}/img/t_{}.jpg"
+    #             return url.format(
+    #                 self.user.name[0], self.user.name[1], self.user.name, success
+    #             )
+    #         else:
+    #             return f"img{success}"
+    #     return None
 
 async def sessionget(session: aiohttp.ClientSession, url: str):
     async with session.get(url) as resp:
