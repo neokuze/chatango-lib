@@ -282,8 +282,15 @@ class PM(Socket):
         self._connectiontime = float(args[0])
         self._correctiontime = float(self._connectiontime) - time.time()
 
+    async def _rcmd_kickingoff(self, args):
+        await self.handler._call_event("kickingoff", self, args)
+        self.__token = None
+        await self._disconnect()
+
     async def _rcmd_DENIED(self, args):
         await self.handler._call_event("pm_denied", self, args)
+        self.__token = None
+        await self._disconnect()
 
     async def _rcmd_OK(self, args):
         if self.friends or self.blocked:

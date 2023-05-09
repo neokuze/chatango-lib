@@ -99,7 +99,8 @@ async def get_token(user_name, passwd):
         "password": str(passwd),
         "storecookie": "on",
         "checkerrors": "yes"}
-    async with get_aiohttp_session().post(chatango[0], data=payload) as resp:
+    # Use fresh session to retrieve auth cookies
+    async with aiohttp.ClientSession().post(chatango[0], data=payload) as resp:
         if chatango[1] in resp.cookies:
             token = str(resp.cookies[chatango[1]]).split(
                 "=")[1].split(";")[0]
