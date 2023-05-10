@@ -121,13 +121,13 @@ class PM(Socket):
         super().__init__(handler)
         self.server = "c1.chatango.com"
         self.port = 443
+        self.user = None
+        self.reconnect = False
         self.__token = None
-        self._reconnect = False
         self._correctiontime = 0
 
         # misc
         self._uid = gen_uid()
-        self._user = None
         self._silent = 0
         self._maxlen = 11600
         self._friends = dict()
@@ -148,10 +148,6 @@ class PM(Socket):
     @property
     def is_pm(self):
         return True
-
-    @property
-    def user(self):
-        return self._user
 
     @property
     def premium(self):
@@ -175,19 +171,47 @@ class PM(Socket):
         await self._connect(self.server, self.port)
         await self._login(user_name, password)
 
+    async def _login(self, user_name: str, password: str):
+        if not self.__token:
+            self.__token = await get_token(user_name, password)
+        if self.__token:
+            await self._send_command("tlogin", self.__token, "2", self._uid)
+            self.user = User(user_name)
+
+    async def connection_wait(self):
+        if self._recv_task:
+            await self._recv_task
+
     async def disconnect(self):
-        self._reconnect = False
+        self.reconnect = False
         await self._disconnect()
 
     async def listen(self, user_name: str, password: str, reconnect=False):
-        self._reconnect = reconnect
+        self.reconnect = reconnect
         while True:
             await self.connect(user_name, password)
-            if self._recv_task:
-                await self._recv_task
-            if not self._reconnect:
+            await self.connection_wait()
+            if not self.reconnect:
                 break
-            await asyncio.sleep(1)
+            await asyncio.sleep(3)
+
+    async def send_message(self, target, message: str, use_html: bool = False):
+        if isinstance(target, User):
+            target = target.name
+        if self._silent > time.time():
+            await self.handler._call_event("pm_silent", message)
+        else:
+            if len(message) > 0:
+                message = message  # format_videos(self.user, message)
+                nc, fs, fc, ff = (
+                    f"<n{self.user.styles.name_color}/>",
+                    f"{self.user.styles.font_size}",
+                    f"{self.user.styles.font_color}",
+                    f"{self.user.styles.font_face}",
+                )
+                for msg in message_cut(message, self._maxlen):
+                    msg = f'{nc}<m v="1"><g xs0="0"><g x{fs}s{fc}="{ff}">{msg}</g></g></m>'
+                    await self._send_command("msg", target.lower(), msg)
 
     async def block(self, user):  # TODO
         if isinstance(user, User):
@@ -234,31 +258,6 @@ class PM(Socket):
         friend = self.get_friend(user)
         if friend:
             await self._send_command("wldelete", friend.name)
-
-    async def _login(self, user_name: str, password: str):
-        if not self.__token:
-            self.__token = await get_token(user_name, password)
-        if self.__token:
-            await self._send_command("tlogin", self.__token, "2", self._uid)
-            self._user = User(str(user_name))
-
-    async def send_message(self, target, message: str, use_html: bool = False):
-        if isinstance(target, User):
-            target = target.name
-        if self._silent > time.time():
-            await self.handler._call_event("pm_silent", message)
-        else:
-            if len(message) > 0:
-                message = message  # format_videos(self.user, message)
-                nc, fs, fc, ff = (
-                    f"<n{self.user.styles.name_color}/>",
-                    f"{self.user.styles.font_size}",
-                    f"{self.user.styles.font_color}",
-                    f"{self.user.styles.font_face}",
-                )
-                for msg in message_cut(message, self._maxlen):
-                    msg = f'{nc}<m v="1"><g xs0="0"><g x{fs}s{fc}="{ff}">{msg}</g></g></m>'
-                    await self._send_command("msg", target.lower(), msg)
 
     async def _rcmd_seller_name(self, args):
         await self.handler._call_event("pm_connect", self)

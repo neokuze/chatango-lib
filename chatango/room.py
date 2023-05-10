@@ -165,11 +165,12 @@ class Room(Connection):
         self.assert_valid_name(name)
         self.name = name
         self.server = get_server(name)
+        self.reconnect = False
+        self.owner: Optional[User] = None
         self._uid = gen_uid()
         self._bwqueue = str()
         self._user = None
         self._silent = False
-        self._owner = None
         self._mods = dict()
         self._userhistory = deque(maxlen=10)
         self._userdict = dict()
@@ -186,7 +187,6 @@ class Room(Connection):
         self._maxlen = 2700
         self._history = deque(maxlen=self._maxlen + 300)
         self._bgmode = 0
-        self._reconnect = False
         self._nomore = False
         self._connectiontime = None
         self.message_flags = 0
@@ -229,10 +229,6 @@ class Room(Connection):
         return list(self._banlist.keys())
 
     @property
-    def owner(self):
-        return self._owner
-
-    @property
     def flags(self):
         return self._flags
 
@@ -273,8 +269,59 @@ class Room(Connection):
         if not expr.match(room_name):
             raise InvalidRoomNameError(room_name)
 
-    def check_connected(self):
-        return (self._connected, self._reconnect)
+    async def connect(self, user_name: str = "", password: str = ""):
+        if self.connected:
+            raise AlreadyConnectedError(self.name)
+        await self._connect(self.server)
+        await self._auth(user_name, password)
+
+    async def connection_wait(self):
+        if self._recv_task:
+            await self._recv_task
+
+    async def disconnect(self):
+        for x in self.userlist:
+            x.removeSessionId(self, 0)
+        self.reconnect = False
+        await self._disconnect()
+
+    async def listen(self, user_name: str = "", password: str = "", reconnect=False):
+        self.reconnect = reconnect
+        while True:
+            await self.connect(user_name, password)
+            await self.connection_wait()
+            if not self.reconnect:
+                break
+            await asyncio.sleep(3)
+
+    async def _auth(self, user_name: str = "", password: str = ""):
+        """
+        Login when joining a room
+        """
+        await self._send_command("bauth", self.name, self._uid, user_name, password)
+
+    async def _login(self, user_name: str = "", password: str = ""):
+        """
+        Login after having connected as anon
+        """
+        self._user = User(user_name, isanon=not password)
+        await self._send_command("blogin", user_name, password)
+
+    async def _logout(self):
+        await self._send_command("blogout")
+
+    async def send_message(self, message, use_html=False, flags=None):
+        if not self.silent:
+            message_flags = (
+                flags if flags else self.message_flags + self.badge or 0 + self.badge
+            )
+            msg = str(message)
+            if not use_html:
+                msg = html.escape(msg, quote=False)
+            msg = msg.replace("\n", "\r").replace("~", "&#126;")
+            for msg in message_cut(msg, self._maxlen):
+                message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
+                await self._send_command("bm", _id_gen(), str(message_flags), message)
 
     def set_font(
         self, name_color=None, font_color=None, font_size=None, font_face=None
@@ -326,7 +373,7 @@ class Room(Connection):
     def get_level(self, user):
         if isinstance(user, str):
             user = User(user)
-        if user == self._owner:
+        if user == self.owner:
             return 3
         if user in self._mods:
             if self._mods.get(user).isadmin:
@@ -456,14 +503,6 @@ class Room(Connection):
             "1",
         )
 
-    async def _rcmd_annc(self, args):
-        self._announcement[0] = int(args[0])
-        anc = ":".join(args[2:])
-        if anc != self._announcement[2]:
-            self._announcement[2] = anc
-            await self.handler._call_event("AnnouncementUpdate", args[0] != "0")
-        await self.handler._call_event("Announcement", anc)
-
     async def set_banned_words(self, part="", whole=""):
         """
         Actualiza las palabras baneadas para que coincidan con las recibidas
@@ -500,68 +539,18 @@ class Room(Connection):
             if self.user.ispremium:
                 await self._send_command("msgbg", str(self._bgmode))
 
-    async def disconnect(self):
-        for x in self.userlist:
-            x.removeSessionId(self, 0)
-        self._reconnect = False
-        await self._disconnect()
-
-    async def connect(
-        self,
-        user_name: str = "",
-        password: str = "",
-    ):
-        if self.connected:
-            raise AlreadyConnectedError(self.name)
-        await self._connect(self.server)
-        await self._send_command("bauth", self.name, self._uid, user_name, password)
-
-    async def listen(
-        self,
-        user_name: str = "",
-        password: str = "",
-        reconnect=False,
-    ):
-        self._reconnect = reconnect
-        while True:
-            await self.connect(user_name, password)
-            if self._recv_task:
-                await self._recv_task
-            if not self._reconnect:
-                break
-            await asyncio.sleep(1)
-
-    async def login(
-        self,
-        user_name: Optional[str] = None,
-        password: Optional[str] = None,
-    ):
-        self._user = User(user_name, isanon=False if password == "" else True)
-        await self._send_command("blogin", user_name or "", password or "")
-
-    async def _rcmd_pwdok(self, args):
-        self._user._isanon = False
-        await self._send_command("getpremium", "l")
-        await self._style_init(self._user)
-
-    async def logout(self):
-        await self._send_command("blogout")
-
-    async def send_message(self, message, use_html=False, flags=None):
-        if not self.silent:
-            message_flags = (
-                flags if flags else self.message_flags + self.badge or 0 + self.badge
+    async def _style_init(self, user):
+        if not user.isanon:
+            if self.user.ispremium:
+                await user.get_styles()
+            await user.get_main_profile()
+        else:
+            self.set_font(
+                name_color="000000", font_color="000000", font_size=11, font_face=1
             )
-            msg = str(message)
-            if not use_html:
-                msg = html.escape(msg, quote=False)
-            msg = msg.replace("\n", "\r").replace("~", "&#126;")
-            for msg in message_cut(msg, self._maxlen):
-                message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
-                await self._send_command("bm", _id_gen(), str(message_flags), message)
 
     async def _rcmd_ok(self, args):  # TODO
-        self._owner = User(args[0])
+        self.owner = User(args[0])
         self._puid = args[1]
         self._login_as = args[2]
         self._currentname = args[3]
@@ -588,18 +577,21 @@ class Room(Connection):
                 )
         await self.handler._call_event("connect", self)
 
-    async def _style_init(self, user):
-        if not user.isanon:
-            if self.user.ispremium:
-                await user.get_styles()
-            await user.get_main_profile()
-        else:
-            self.set_font(
-                name_color="000000", font_color="000000", font_size=11, font_face=1
-            )
-
     async def _rcmd_inited(self, args):
         await self._reload()
+
+    async def _rcmd_pwdok(self, args):
+        self._user._isanon = False
+        await self._send_command("getpremium", "l")
+        await self._style_init(self._user)
+
+    async def _rcmd_annc(self, args):
+        self._announcement[0] = int(args[0])
+        anc = ":".join(args[2:])
+        if anc != self._announcement[2]:
+            self._announcement[2] = anc
+            await self.handler._call_event("AnnouncementUpdate", args[0] != "0")
+        await self.handler._call_event("Announcement", anc)
 
     async def _rcmd_pong(self, args):
         await self.handler._call_event("pong", self)
@@ -639,7 +631,7 @@ class Room(Connection):
 
     async def _rcmd_premium(self, args):  # TODO
         if self._bgmode and (
-            args[0] == "210" or (isinstance(self, Room) and self._owner == self.user)
+            args[0] == "210" or (isinstance(self, Room) and self.owner == self.user)
         ):
             self.user._ispremium = True
             await self._send_command("msgbg", str(self._bgmode))
@@ -681,7 +673,7 @@ class Room(Connection):
                 else:
                     name = get_anon_name(contime, puid)
             user = User(name, isanon=isanon, puid=puid)
-            if user in ({self._owner} | self.mods):
+            if user in ({self.owner} | self.mods):
                 user.setName(name)
             user.addSessionId(self, ssid)
             self._userdict[ssid] = [contime, user]
