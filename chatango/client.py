@@ -71,17 +71,20 @@ class Client(EventHandler):
         await pm.listen(self.username, self.password, reconnect=True)
         self.pm = None
 
-    async def leave_pm(self):
+    def leave_pm(self):
         if self.pm:
-            await self.pm.disconnect()
+            self.add_task(self.pm.disconnect())
 
     def get_room(self, room_name: str):
+        Room.assert_valid_name(room_name)
         return self.rooms.get(room_name)
 
     def in_room(self, room_name: str):
+        Room.assert_valid_name(room_name)
         return room_name in self.rooms
 
     def join_room(self, room_name: str):
+        Room.assert_valid_name(room_name)
         if self.in_room(room_name):
             logger.error(f"Already joined room {room_name}")
             # Attempt to reconnect existing room?
@@ -96,17 +99,17 @@ class Client(EventHandler):
         # Client level reconnect?
         self.rooms.pop(room_name, None)
 
-    async def leave_room(self, room_name: str):
+    def leave_room(self, room_name: str):
         room = self.get_room(room_name)
         if room:
-            await room.disconnect()
+            self.add_task(room.disconnect())
 
-    async def stop(self):
+    def stop(self):
         if self.pm:
-            await self.leave_pm()
+            self.leave_pm()
 
         for room_name in self.rooms:
-            await self.leave_room(room_name)
+            self.leave_room(room_name)
 
     async def enable_bg(self, active=True):
         """Enable background if available."""

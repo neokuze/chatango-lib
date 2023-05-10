@@ -270,22 +270,40 @@ class Room(Connection):
             raise InvalidRoomNameError(room_name)
 
     async def connect(self, user_name: str = "", password: str = ""):
+        """
+        Connect and login to the room
+        """
         if self.connected:
             raise AlreadyConnectedError(self.name)
         await self._connect(self.server)
         await self._auth(user_name, password)
 
     async def connection_wait(self):
+        """
+        Wait until the connection is closed
+        """
         if self._recv_task:
             await self._recv_task
 
     async def disconnect(self):
+        """
+        Force this room to disconnect
+        """
         for x in self.userlist:
             x.removeSessionId(self, 0)
         self.reconnect = False
         await self._disconnect()
 
+    async def bounce(self):
+        """
+        Disconnect but allow reconnection
+        """
+        await self._disconnect()
+
     async def listen(self, user_name: str = "", password: str = "", reconnect=False):
+        """
+        Join and wait on room connection
+        """
         self.reconnect = reconnect
         while True:
             await self.connect(user_name, password)
@@ -855,6 +873,7 @@ class Room(Connection):
         await self.handler._call_event("clearall", args[0])
 
     async def _rcmd_denied(self, args):
+        await self.disconnect()
         await self.handler._call_event("room_denied", self)
 
     async def _rcmd_updatemoderr(self, args):
