@@ -10,6 +10,9 @@ The lib is not finished. i will make changes and make optimizations when require
 also i want to make some special lib with original content.
 so when i can, i will remove the "copied content" and make it myself.
 Any question can be [here](https://palaciodehielo.chatango.com/) *en/es*, whatever.
+
+upd: I'm seeing the limit using just one session, thinking about making a version that sets connection per session. 2.0v 
+wait for it.
 #### Required
 1-Python 3.6+
 
