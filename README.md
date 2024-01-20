@@ -3,7 +3,7 @@ Chatango Library for Python 3.6+
 
 First, Special thanks to Sweets, Linkkg(Megamaster12) and [TheClonerx](https://github.com/linkkg/megach.py)
 
-Based on "megach.py", [linkkg](https://github.com/linkkg/) + "CherryBlossom", [Sweets](https://github.com/sweets/) also she motivate me with async.
+Based on "megach.py", [linkkg](https://github.com/linkkg/) + "CherryBlossom", [Sweets](https://github.com/sweets/) also she motivate me with async, and LmaoLover for his fork.
 
 ##### Things to know (TO DO)
 Lib is not finished; there still some bugs. I'll appreciate if someone tell me too.
