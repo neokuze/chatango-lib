@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from typing import Coroutine, Dict, List, Optional
+from typing import Coroutine, Dict, List, Optional, Union
+from asyncio import Future, Task
 
 from .pm import PM
 from .room import Room
@@ -27,8 +28,27 @@ class Client(EventHandler):
     def __dir__(self):
         return public_attributes(self)
 
-    def add_task(self, coro: Coroutine):
-        self._tasks.append(asyncio.create_task(coro))
+    def add_task(self, coro_or_future: Union[Coroutine, Future], timeout: float = 0, forever: bool = False):
+        """
+        Adds a coroutine or future to the task list with optional timeout and repeat options.
+
+        Parameters:
+            coro_or_future (Union[Coroutine, Future]): Coroutine or Future instance to be added to the task list.
+            timeout (float, optional): Timeout value in seconds. Default is 0 (no timeout).
+            forever (bool, optional): If True, the task will be repeated indefinitely. Default is False.
+        """
+        if isinstance(coro_or_future, Coroutine):
+            task = asyncio.create_task(coro_or_future)
+        elif isinstance(coro_or_future, Future):
+            task = Task(coro_or_future)
+        else:
+            raise ValueError("Only accepts Coroutine or Future instance.")
+        if timeout > 0:
+            task = asyncio.wait_for(task, timeout)
+        if forever:
+            self._tasks.append(task)
+        else:
+            self._tasks.insert(0, task)
 
     def _prune_tasks(self):
         self._tasks = [task for task in self._tasks if not task.done()]
