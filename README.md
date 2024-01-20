@@ -22,4 +22,6 @@ Rooms works, but at least maybe can have a problem reconnecting. (haven't see it
 ### Linux / Termux
 `git clone https://github.com/neokuze/chatango-lib && cd chatango-lib`
 ### wherever is the setup.py
+`$ pip install --user -r requirements.txt`
+
 `$ pip install --user .`
