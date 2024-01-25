@@ -38,6 +38,7 @@ class Client(EventHandler):
             coro_or_future (Union[Coroutine, Future]): Coroutine or Future instance to be added to the task list.
             timeout (float, optional): Timeout value in seconds. Default is 0 (no timeout).
             repeat (bool, optional): If True, the task will be repeated indefinitely. Default is False.
+            after (float, optional): Timeout value in seconds. Default is 0 (no timeout). 
         """
         if isinstance(coro_or_future, Coroutine):
             task = asyncio.ensure_future(coro_or_future)
