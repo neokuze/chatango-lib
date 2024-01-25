@@ -5,4 +5,4 @@ from .pm import *
 from .utils import *
 from .user import *
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
