@@ -30,14 +30,14 @@ class Client(EventHandler):
     def __dir__(self):
         return public_attributes(self)
 
-    def add_task(self, coro_or_future: Union[Coroutine, Future], timeout: float = 0, forever: bool = False):
+    def add_task(self, coro_or_future: Union[Coroutine, Future], timeout: float = 0, repeat: bool = False):
         """
         Adds a coroutine or future to the task list with optional timeout and repeat options.
 
         Parameters:
             coro_or_future (Union[Coroutine, Future]): Coroutine or Future instance to be added to the task list.
             timeout (float, optional): Timeout value in seconds. Default is 0 (no timeout).
-            forever (bool, optional): If True, the task will be repeated indefinitely. Default is False.
+            repeat (bool, optional): If True, the task will be repeated indefinitely. Default is False.
         """
         if isinstance(coro_or_future, Coroutine):
             task = asyncio.ensure_future(coro_or_future)
