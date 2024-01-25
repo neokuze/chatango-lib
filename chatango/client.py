@@ -16,7 +16,6 @@ class Client(EventHandler):
     def __init__(
         self, username: str = "", password: str = "", rooms: List[str] = [], pm=False
     ):
-        self._tasks: List[asyncio.Task] = []
         self.running = False
         self.rooms: Dict[str, Room] = {}
         self.pm: Optional[PM] = None
@@ -24,6 +23,9 @@ class Client(EventHandler):
         self.initial_rooms: List[str] = rooms
         self.username = username
         self.password = password
+
+        self._tasks: List[asyncio.Task] = []
+        self._task_loops: List[asyncio.Task] = []
 
     def __dir__(self):
         return public_attributes(self)
@@ -38,17 +40,34 @@ class Client(EventHandler):
             forever (bool, optional): If True, the task will be repeated indefinitely. Default is False.
         """
         if isinstance(coro_or_future, Coroutine):
-            task = asyncio.create_task(coro_or_future)
+            task = asyncio.ensure_future(coro_or_future)
         elif isinstance(coro_or_future, Future):
             task = Task(coro_or_future)
         else:
             raise ValueError("Only accepts Coroutine or Future instance.")
-        if timeout > 0:
-            task = asyncio.wait_for(task, timeout)
-        if forever:
-            self._tasks.append(task)
+
+        self._handle_task_options(task, timeout, repeat, after)
+
+    def _handle_task_options(self, task: asyncio.Task, timeout: float, repeat: bool, after: float):
+        if repeat or timeout:
+            loop_task = asyncio.create_task(self._run_task_forever(task, repeat, timeout, after))
+            self._task_loops.append(loop_task)
         else:
             self._tasks.insert(0, task)
+            
+    async def _run_task_forever(self, coro: Union[Coroutine, Future], repeat: bool, timeout: float, after: float):
+        while True:
+            if timeout:
+                await asyncio.sleep(timeout)
+            try:
+                task = asyncio.create_task(coro)
+                await task
+            except asyncio.CancelledError:
+                break
+            if after:
+                await asyncio.sleep(after)
+            if not repeat:
+                break
 
     def _prune_tasks(self):
         self._tasks = [task for task in self._tasks if not task.done()]
