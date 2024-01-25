@@ -30,7 +30,7 @@ class Client(EventHandler):
     def __dir__(self):
         return public_attributes(self)
 
-    def add_task(self, coro_or_future: Union[Coroutine, Future], timeout: float = 0, repeat: bool = False):
+    def add_task(self, coro_or_future: Union[Coroutine, Future], timeout: float = 0, repeat: bool = False, after: float = 0):
         """
         Adds a coroutine or future to the task list with optional timeout and repeat options.
 
