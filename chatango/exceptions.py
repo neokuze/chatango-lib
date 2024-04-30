@@ -16,3 +16,6 @@ class NotConnectedError(BaseRoomError):
 
 class InvalidRoomNameError(BaseRoomError):
     pass
+
+class WebSocketClosure(Exception):
+    pass

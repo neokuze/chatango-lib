@@ -27,48 +27,18 @@ class Client(EventHandler):
         self._tasks: List[asyncio.Task] = []
         self._task_loops: List[asyncio.Task] = []
 
+
     def __dir__(self):
         return public_attributes(self)
 
-    def add_task(self, coro_or_future: Union[Coroutine, Future], timeout: float = 0, repeat: bool = False, after: float = 0):
-        """
-        Adds a coroutine or future to the task list with optional timeout and repeat options.
+  
+    def add_task(self, coro_or_future: Union[Coroutine, Future]):# TODO
+        task = asyncio.create_task(coro_or_future)
+        self._handle_task_options(task)
 
-        Parameters:
-            coro_or_future (Union[Coroutine, Future]): Coroutine or Future instance to be added to the task list.
-            timeout (float, optional): Timeout value in seconds. Default is 0 (no timeout).
-            repeat (bool, optional): If True, the task will be repeated indefinitely. Default is False.
-            after (float, optional): Timeout value in seconds. Default is 0 (no timeout). 
-        """
-        if isinstance(coro_or_future, Coroutine):
-            task = asyncio.ensure_future(coro_or_future)
-        elif isinstance(coro_or_future, Future):
-            task = Task(coro_or_future)
-        else:
-            raise ValueError("Only accepts Coroutine or Future instance.")
-
-        self._handle_task_options(task, timeout, repeat, after)
-
-    def _handle_task_options(self, task: asyncio.Task, timeout: float, repeat: bool, after: float):
-        if repeat or timeout:
-            loop_task = asyncio.create_task(self._run_task_forever(task, repeat, timeout, after))
-            self._task_loops.append(loop_task)
-        else:
-            self._tasks.insert(0, task)
+    def _handle_task_options(self, task: Task):
+        self._tasks.insert(0, task)
             
-    async def _run_task_forever(self, coro: Union[Coroutine, Future], repeat: bool, timeout: float, after: float):
-        while True:
-            if timeout:
-                await asyncio.sleep(timeout)
-            try:
-                task = asyncio.create_task(coro)
-                await task
-            except asyncio.CancelledError:
-                break
-            if after:
-                await asyncio.sleep(after)
-            if not repeat:
-                break
 
     def _prune_tasks(self):
         self._tasks = [task for task in self._tasks if not task.done()]

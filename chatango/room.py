@@ -73,7 +73,7 @@ class Connection:
 
     async def _connect(self, server: str):
         try:
-            self._connection = await get_aiohttp_session().ws_connect(
+            self._connection = await aiohttp.ClientSession().ws_connect(
                 f"ws://{server}:8080/", origin="http://st.chatango.com"
             )
             self._connected = True
@@ -113,27 +113,28 @@ class Connection:
 
     async def _do_recv(self):
         while self._connection:
-            message = await self._connection.receive()
-            if not self.connected:
-                break
-            if message.type == aiohttp.WSMsgType.TEXT:
-                if message.data:
-                    logger.debug(f" IN {message.data}")
-                    await self._do_process(message.data)
-                else:
-                    await self._do_process("pong")
-            elif (
-                message.type == aiohttp.WSMsgType.CLOSE
-                or message.type == aiohttp.WSMsgType.CLOSING
-                or message.type == aiohttp.WSMsgType.CLOSED
-                or message.type == aiohttp.WSMsgType.ERROR
-            ):
-                await self._disconnect()
-                break
-            else:
-                logger.error(f"Unexpected aiohttp.WSMsgType: {message.type}")
-            await asyncio.sleep(0.0001)
-        await self.handler._call_event("disconnect", self)
+            try:
+                message = await self._connection.receive()
+                if not self.connected:
+                    break
+                if message.type == aiohttp.WSMsgType.TEXT:
+                    if message.data:
+                        logger.debug(f" IN {message.data}")
+                        await self._do_process(message.data)
+                    else:
+                        await self._do_process("pong")
+                elif (
+                    message.type in [aiohttp.WSMsgType.CLOSE,
+                       aiohttp.WSMsgType.CLOSING,aiohttp.WSMsgType.CLOSED]
+                ):
+                    raise WebSocketClosure
+                elif message.type == aiohttp.WSMsgType.ERROR:
+                    logger.error(f"Error while handling command {c}")
+                    raise WebSocketClosure
+            except (asyncio.TimeoutError, WebSocketClosure) as e:
+                if self._ws and self._ws.closed:
+                    errorname = {code: name for name, code in WSCloseCode.__members__.items()}
+                    await self._disconnect()
 
     async def _do_process(self, recv: str):
         """
