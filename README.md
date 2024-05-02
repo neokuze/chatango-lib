@@ -1,15 +1,33 @@
 # chatango-lib
 Chatango Library for Python 3.6+
 
-First, Special thanks to Sweets, Linkkg(Megamaster12) and [TheClonerx](https://github.com/linkkg/megach.py)
+### Library is supposed to be similar to use for megach.py users, but was based from cherryblossom.
 
+Special thanks to Sweets, Linkkg(Megamaster12) and [TheClonerx](https://github.com/linkkg/megach.py)
 Based on "megach.py", [linkkg](https://github.com/linkkg/) + "CherryBlossom", [Sweets](https://github.com/sweets/) also she motivate me with async, and LmaoLover for his fork.
+
+
+---
+#### supposed to be working
+##### Rooms/reconnect
+
+##### PM/DM
+
+##### Websocket raise exceptions on close ws.
 
 ---
 ##### Things to know (TO DO)
-Lib is not finished; there still some bugs. I'll appreciate if someone tell me too.
-pm/dm is working, but need some love with the yt frame, and others things.
-Rooms works, but at least maybe can have a problem reconnecting. (haven't see it yet.)
+[☑️] Proper way to handle ws error. 
+
+[☑️] Disconnect event.
+
+[ ] Reimplement reconnect events.
+
+[ ] Fixed PM youtube video message.
+
+[ ] Documentation.
+
+[ ] Example with aiofiles
 
 ---
 **Requirements:**
