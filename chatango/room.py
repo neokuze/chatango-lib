@@ -75,7 +75,7 @@ class Connection:
         return self._connected
 
     async def _connect(self, server: str):
-        while True
+        while True:
             try:
                 self._connection = await aiohttp.ClientSession().ws_connect(
                     f"ws://{server}:8080/", origin="http://st.chatango.com"
