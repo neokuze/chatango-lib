@@ -141,7 +141,10 @@ class Connection:
                 if self._ws and self._ws.closed:
                     errorname = {code: name for name, code in WSCloseCode.__members__.items()}
                     logger.error(f"[ws: {self._name}] Closed, reason; {errorname}")
-                    await self._disconnect()
+                    break        
+        await self._disconnect()
+        await self.handler._call_event("disconnect", self) #/ now will trigger a on_disconnect event
+            
 
     async def _do_process(self, recv: str):
         """
