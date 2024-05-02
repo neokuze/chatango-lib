@@ -26,8 +26,11 @@ from .user import User, ModeratorFlags, AdminFlags
 from .exceptions import AlreadyConnectedError, InvalidRoomNameError
 from .handler import EventHandler
 
-logger = logging.getLogger(__name__)
+from aiohttp import ClientTimeout
+from aiohttp.http_websocket import WSCloseCode, WebSocketError
+from aiohttp.client_exceptions import ServerDisconnectedError, ServerTimeoutError
 
+logger = logging.getLogger(__name__)
 
 class RoomFlags(enum.IntFlag):
     LIST_TAXONOMY = 1 << 0
@@ -72,16 +75,17 @@ class Connection:
         return self._connected
 
     async def _connect(self, server: str):
-        try:
-            self._connection = await aiohttp.ClientSession().ws_connect(
-                f"ws://{server}:8080/", origin="http://st.chatango.com"
-            )
-            self._connected = True
-            self._recv_task = asyncio.create_task(self._do_recv())
-            self._ping_task = asyncio.create_task(self._do_ping())
-        except aiohttp.ClientError as e:
-            await self._disconnect()
-            logging.getLogger(__name__).error(f"Could not connect to {server}: {e}")
+        while True
+            try:
+                self._connection = await aiohttp.ClientSession().ws_connect(
+                    f"ws://{server}:8080/", origin="http://st.chatango.com"
+                )
+                self._connected = True
+                self._recv_task = asyncio.create_task(self._do_recv())
+                self._ping_task = asyncio.create_task(self._do_ping())
+                break #/ if connected will end & break the loop
+            except (aiohttp.ClientError, ServerDisconnectedError, ServerTimeoutError) as e:
+                logging.getLogger(__name__).error(f"Could not connect to {server}: {e}")
 
     async def _disconnect(self):
         if self._ping_task:
@@ -111,10 +115,11 @@ class Connection:
         except asyncio.exceptions.CancelledError:
             pass
 
-    async def _do_recv(self):
+    async def _do_recv(self): # TODO implement reconection events, and proper disconnect
+        timeout = ClientTimeout(sock_connect=300,sock_read=300)
         while self._connection:
             try:
-                message = await self._connection.receive()
+                message = await asyncio.wait_for(self._connection.receive(), timeout=timeout.total)
                 if not self.connected:
                     break
                 if message.type == aiohttp.WSMsgType.TEXT:
@@ -129,11 +134,13 @@ class Connection:
                 ):
                     raise WebSocketClosure
                 elif message.type == aiohttp.WSMsgType.ERROR:
-                    logger.error(f"Error while handling command {c}")
+                    logger.debug(f"[ws: {self._name}] Error from {message}")
                     raise WebSocketClosure
-            except (asyncio.TimeoutError, WebSocketClosure) as e:
+            except (ConnectionResetError, ServerTimeoutError, WebSocketClosure,
+                    ServerDisconnectedError, WebSocketError, asyncio.exceptions.CancelledError) as e:
                 if self._ws and self._ws.closed:
                     errorname = {code: name for name, code in WSCloseCode.__members__.items()}
+                    logger.error(f"[ws: {self._name}] Closed, reason; {message}")
                     await self._disconnect()
 
     async def _do_process(self, recv: str):
