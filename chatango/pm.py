@@ -3,6 +3,7 @@ import time
 import asyncio
 import logging
 import traceback
+import html as html2
 from typing import Optional
 
 from .utils import get_token, gen_uid, public_attributes
@@ -195,7 +196,7 @@ class PM(Socket):
                 break
             await asyncio.sleep(3)
 
-    async def send_message(self, target, message: str, use_html: bool = False):
+    async def send_message(self, target, message: str, html: bool = False):
         if isinstance(target, User):
             target = target.name
         if self._silent > time.time():
@@ -203,6 +204,8 @@ class PM(Socket):
         else:
             if len(message) > 0:
                 message = message  # format_videos(self.user, message)
+                if not html:
+                    message = html2.escape(message, quote=False)
                 nc, fs, fc, ff = (
                     f"<n{self.user.styles.name_color}/>",
                     f"{self.user.styles.font_size}",

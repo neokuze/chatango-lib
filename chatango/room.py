@@ -1,7 +1,7 @@
 import aiohttp
 import asyncio
 import sys
-import html
+import html as html2
 import sys
 import time
 import enum
@@ -340,14 +340,14 @@ class Room(Connection):
     async def _logout(self):
         await self._send_command("blogout")
 
-    async def send_message(self, message, use_html=False, flags=None):
+    async def send_message(self, message, html=False, flags=None):
         if not self.silent:
             message_flags = (
                 flags if flags else self.message_flags + self.badge or 0 + self.badge
             )
             msg = str(message)
-            if not use_html:
-                msg = html.escape(msg, quote=False)
+            if not html:
+                msg = html2.escape(msg, quote=False)
             msg = msg.replace("\n", "\r").replace("~", "&#126;")
             for msg in message_cut(msg, self._maxlen):
                 message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
@@ -663,7 +663,8 @@ class Room(Connection):
         if self._bgmode and (
             args[0] == "210" or (isinstance(self, Room) and self.owner == self.user)
         ):
-            self.user._ispremium = True
+            if self.user:
+                self.user._ispremium = True
             await self._send_command("msgbg", str(self._bgmode))
 
     async def _rcmd_show_fw(self, args=None):
