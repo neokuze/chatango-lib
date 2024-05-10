@@ -566,7 +566,7 @@ class Room(Connection):
         self._bgmode = mode
         if self.connected:
             await self._send_command("getpremium", "l")
-            if self.user.ispremium:
+            if self.user and self.user.ispremium:
                 await self._send_command("msgbg", str(self._bgmode))
 
     async def _style_init(self, user):
