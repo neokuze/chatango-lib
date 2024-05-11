@@ -8,19 +8,36 @@ import typing
 class config:
     user_name = ""
     passwd = ""
-    rooms = ["examplegroup"]
+    rooms = ["asynclibraryinpython"]
     pm = False
 
 class Bot(chatango.Client):
-    async def on_connect(self, room: typing.Union[chatango.Room, chatango.PM]):
+    async def on_connect(self, room):
         print("[info] Connected to {}".format(repr(room)))
+        await self.enable_bg()
+
+    async def on_pm_connect(self, pm):
+        print("[info] Connected to {}".format(repr(pm)))
+        await self.enable_bg()
+
     async def on_disconnect(self, room):
         print("[info] Disconnected from {}".format(repr(room)))
+
+    async def on_pm_disconnect(self, pm):
+            print("[info] Disconnected from {}".format(repr(pm)))
+
     async def on_message(self, message):
         print(time.strftime("%b/%d-%H:%M:%S", time.localtime(message.time)),
               message.room.name, message.user.showname, ascii(message.body)[1:-1])
         if message.body.split()[0] in ["!a"]:
-            await message.room.send_message("test") 
+            await message.room.send_message("test", html=True) 
+
+    async def on_pm_message(self, message):
+        print(time.strftime("%b/%d-%H:%M:%S", time.localtime(message.time)),
+              message.room.name, message.user.showname, ascii(message.body)[1:-1])
+        if message.body.split()[0] in ["!a"]:
+            await message.room.send_message(message.user.name, "test")
+
        
 """
 Specials thanks to LmaoLover, TheClonerx
