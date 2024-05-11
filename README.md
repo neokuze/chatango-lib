@@ -1,11 +1,12 @@
 # chatango-lib
-Chatango Library for Python 3.6+
 
-### Library is supposed to be similar to use for megach.py users, but was based from cherryblossom.
+A powerful asynchronous Chatango library with aiohttp, written in Python 3.6+
 
-Special thanks to Sweets, Linkkg(Megamaster12) and [TheClonerx](https://github.com/linkkg/megach.py)
-Based on "megach.py", [linkkg](https://github.com/linkkg/) + "CherryBlossom", [Sweets](https://github.com/sweets/) also she motivate me with async, and LmaoLover for his fork.
+### Library is supposed to be similar in usage for megach.py users, but was based on cherryblossom.
 
+Special thanks to [Sweets](https://github.com/sweets/), [Linkkg](https://github.com/linkkg/megach.py), and [TheClonerx](https://github.com/theclonerx).
+
+Similar usage to "megach.py" by Linkkg & "CherryBlossom" by Sweets. Sweets also motivated me with async, & thanks to [LmaoLover](https://github.com/LmaoLover/) for their help.
 
 ---
 #### supposed to be working
