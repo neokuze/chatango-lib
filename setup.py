@@ -17,7 +17,7 @@ with open("README.md") as f:
     readme = f.read()
 
 setup(name="chatango-lib",
-      author="Yado",
+      author="neokuze",
       url="https://github.com/neokuze/chatango-lib",
       version=version,
       packages=["chatango"],
