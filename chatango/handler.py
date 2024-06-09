@@ -1,9 +1,9 @@
 import inspect
 import logging
-
+import typing
 
 class EventHandler:
-    async def on_event(self, event: str, *args, **kwargs):
+    async def on_event(self, event: str, *args: typing.Any, **kwargs: typing.Dict[str, typing.Any]):
         if "ping" in event or "pong" in event:
             return
         if len(args) == 0:
