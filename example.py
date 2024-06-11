@@ -43,8 +43,11 @@ class Bot(chatango.Client):
 Specials thanks to LmaoLover, TheClonerx
 """
 bot = Bot(config.user_name, config.passwd, config.rooms , pm=config.pm)
-async def main ():
+async def main():
     await bot.run(forever=True)
+
+async def stop():
+    await bot.stop()
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
@@ -55,4 +58,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("[KeyboardInterrupt] Killed bot.")
     finally:
+        loop.run_until_complete(stop())
         loop.close()
