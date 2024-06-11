@@ -65,6 +65,7 @@ class Connection:
 
     def _reset(self):
         self._connected = False
+        self._session = None
         self._first_command = True
         self._connection: Optional[aiohttp.ClientWebSocketResponse] = None
         self._recv_task: Optional[asyncio.Task] = None
@@ -77,7 +78,8 @@ class Connection:
     async def _connect(self, server: str):
         while True:
             try:
-                self._connection = await aiohttp.ClientSession().ws_connect(
+                self._session = aiohttp.ClientSession()
+                self._connection = await self._session.ws_connect(
                     f"ws://{server}:8080/", origin="http://st.chatango.com"
                 )
                 self._connected = True
@@ -93,6 +95,8 @@ class Connection:
             self._ping_task.cancel()
         if self._connection:
             await self._connection.close()
+        if self._session:
+            await self._session.close()
         self._reset()
 
     async def _send_command(self, *args, terminator="\r\n\0"):
