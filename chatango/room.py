@@ -20,6 +20,7 @@ from .utils import (
     get_anon_name,
     _id_gen,
     public_attributes,
+    upload_image
 )
 from .message import Message, MessageFlags, _process, message_cut
 from .user import User, ModeratorFlags, AdminFlags
@@ -491,6 +492,9 @@ class Room(Connection):
             return True
         else:
             return False
+
+    async def upload_img(self, files, return_url=True):
+        return await upload_image(self, files, return_url)
 
     async def clear_user(self, user):
         # TODO
