@@ -35,7 +35,7 @@ class Bot(chatango.Client):
     async def on_pm_message(self, message):
         print(time.strftime("%b/%d-%H:%M:%S", time.localtime(message.time)),
               message.room.name, message.user.showname, ascii(message.body)[1:-1])
-        if message.body.split()[0] in ["!a"]:
+        if message.body.split(' ')[0] in ["!a"]:
             await message.room.send_message(message.user.name, "test")
 
        
