@@ -87,7 +87,7 @@ class Connection:
                 self._recv_task = asyncio.create_task(self._do_recv())
                 self._ping_task = asyncio.create_task(self._do_ping())
                 break #/ if connected will end & break the loop
-            except (aiohttp.ClientError, ServerDisconnectedError, ServerTimeoutError) as e:
+            except (aiohttp.ClientError, ConnectionResetError, ServerDisconnectedError, ServerTimeoutError) as e:
                 logging.getLogger(__name__).error(f"Could not connect to {server}: {e}")
                 await asyncio.sleep(5) # persist to connect!
 
