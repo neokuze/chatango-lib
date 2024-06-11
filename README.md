@@ -24,7 +24,7 @@ Similar usage to "megach.py" by Linkkg & "CherryBlossom" by Sweets. Sweets also 
 
 [ ] Reimplement reconnect events.
 
-[ ] Fixed PM youtube video message.
+[☑️] Fixed PM youtube video message.
 
 [ ] Documentation.
 
