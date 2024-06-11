@@ -151,7 +151,7 @@ async def _process_pm(room, args):
     user = User(name)
     mtime = float(args[3]) - room._correctiontime
     rawmsg = ":".join(args[5:])
-    body, n, f = _clean_message(rawmsg, pm=True)
+    body, n, f = _clean_message(format_videos(user.styles, rawmsg), pm=True)
     name_color = n or None
     font_size, font_color, font_face = _parseFont(f)
     msg = PMMessage()
@@ -208,26 +208,14 @@ class Channel:
         await self.send_message(message)
 
 
-# def format_videos(user, pmmessage): pass #TODO TESTING
-#     msg = pmmessage
-#     tag = 'i'
-#     r = []
-#     for word in msg.split(' '):
-#         if msg.strip() != "":
-#             regx = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/(watch\?v=|embed/|v/|.+\?v=)?(?P<id>[A-Za-z0-9\-=_]{11})') #"<" + tag + "(.*?)>", msg)
-#             match = regx.match(word)
-#             w = "<g x{0._fontSize}s{0._fontColor}=\"{0._fontFace}\">".format(user)
-#             if match:
-#                 seek = match.group('id')
-#                 word = f"<i s=\"vid','//yt','{seek}\" w=\"126\" h=\"93\"/>{w}"
-#                 r.append(word)
-#             else:
-#                 if not r:
-#                     r.append(w+word)
-#                 else:
-#                     r.append(word)
-#             count = len([x for x in r if x == w])
-#             print(count)
+def format_videos(user: User, msg: str) -> str:
+    pattern = r'<i s="vid://yt:([A-Za-z0-9_-]{11})"[^>]*?>'
 
-#     print(r)
-#     return " ".join(r)
+    def replace_match(match):
+        video_id = match.group(1)
+        url = f" https://www.youtube.com/watch?v={video_id}"
+        return url
+
+    formatted_msg = re.sub(pattern, replace_match, msg)
+    #w = f"<g x{user.styles._font_size}s{user.styles._font_color}=\"{user.styles._font_face}\">"
+    return formatted_msg
