@@ -178,7 +178,7 @@ def message_cut(message, lenth):
 
 def mentions(body, room):
     t = []
-    for match in re.findall("(\s)?@([a-zA-Z0-9]{1,20})(\s)?", body):
+    for match in re.findall(r"([ \t\n\r\f\v])?@([a-zA-Z0-9]{1,20})([ \t\n\r\f\v])?", body):
         for participant in room.userlist:
             if participant.name.lower() == match[1].lower():
                 if participant not in t:
