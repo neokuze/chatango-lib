@@ -114,12 +114,13 @@ class Client(EventHandler):
         if room:
             self.add_task(room.disconnect())
 
-    def stop(self):
+    async def stop(self):# this must be async.
         if self.pm:
-            self.leave_pm()
+            await self.pm.disconnect()
 
         for room_name in self.rooms:
-            self.leave_room(room_name)
+            room = self.get_room(room_name)
+            await room._disconnect()
 
     async def enable_bg(self, active=True):
         """Enable background if available."""

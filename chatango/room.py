@@ -23,7 +23,7 @@ from .utils import (
 )
 from .message import Message, MessageFlags, _process, message_cut
 from .user import User, ModeratorFlags, AdminFlags
-from .exceptions import AlreadyConnectedError, InvalidRoomNameError
+from .exceptions import AlreadyConnectedError, InvalidRoomNameError, WebSocketClosure
 from .handler import EventHandler
 
 from aiohttp import ClientTimeout
@@ -143,7 +143,7 @@ class Connection:
                     raise WebSocketClosure
             except (ConnectionResetError, ServerTimeoutError, WebSocketClosure,
                     ServerDisconnectedError, WebSocketError, asyncio.exceptions.CancelledError) as e:
-                if self._ws and self._ws.closed:
+                if self._connection and self._connection.closed:
                     errorname = {code: name for name, code in WSCloseCode.__members__.items()}
                     logger.error(f"[ws: {self._name}] Closed, reason; {errorname}")
                     break        
