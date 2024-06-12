@@ -146,7 +146,7 @@ class Connection:
                     ServerDisconnectedError, WebSocketError, asyncio.exceptions.CancelledError) as e:
                 if self._connection and self._connection.closed:
                     errorname = {code: name for name, code in WSCloseCode.__members__.items()}
-                    logger.error(f"[ws: {self._name}] Closed, reason; {errorname}")
+                    logger.error(f"[ws: {self}] Closed, reason; {errorname}")
                     break        
         await self._disconnect()
         await self.handler._call_event("disconnect", self) #/ now will trigger a on_disconnect event
