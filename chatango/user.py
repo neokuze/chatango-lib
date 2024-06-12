@@ -30,6 +30,7 @@ class ModeratorFlags(enum.IntFlag):
     MOD_ICON_VISIBLE = 1 << 17
     IS_STAFF = 1 << 18
     STAFF_ICON_VISIBLE = 1 << 19
+    UNBAN_ALL = 1 << 20 # ubna
 
 
 AdminFlags = (
