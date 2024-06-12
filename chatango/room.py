@@ -1015,3 +1015,7 @@ class Room(Connection):
         user = User.get(args[0])
         user._profile = None
         await self.handler._call_event("profile_reload", user)
+        
+    async def _rcmd_allunblocked(self, args):
+        self._banlist.clear()
+
