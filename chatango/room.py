@@ -28,7 +28,7 @@ from .exceptions import AlreadyConnectedError, InvalidRoomNameError, WebSocketCl
 from .handler import EventHandler
 
 from aiohttp import ClientTimeout
-from aiohttp.http_websocket import WSCloseCode, WebSocketError
+from aiohttp.http_websocket import WebSocketError
 from aiohttp.client_exceptions import ServerDisconnectedError, ServerTimeoutError
 
 logger = logging.getLogger(__name__)
