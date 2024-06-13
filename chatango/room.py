@@ -104,7 +104,7 @@ class Connection:
         message = ":".join(args) + terminator
         if message != "\r\n\x00":  # ping
             logger.debug(f'OUT {":".join(args)}')
-        if self._connection:
+        if self._connection and not self._connection._closing:
             await self._connection.send_str(message)
 
     async def _do_ping(self):
