@@ -142,13 +142,15 @@ class Connection:
                 elif message.type == aiohttp.WSMsgType.ERROR:
                     logger.debug(f"[ws: {self._name}] Error from {message}")
                     raise WebSocketClosure
-            except (ConnectionResetError, ServerTimeoutError, WebSocketClosure,
+            except (ConnectionResetError, WebSocketClosure, ServerTimeoutError
                     ServerDisconnectedError, WebSocketError, asyncio.CancelledError) as e:
                 if isinstance(e, asyncio.CancelledError):
                     logger.debug("WebSocket listener task cancelled") 
                     break
                 if self._connection and self._connection.closed:# no more logs
                     break 
+            except (asyncio.TimeoutError, TimeoutError): #python 3.11+ for wait_for
+                await asyncio.sleep(5)
         await self._disconnect()
         await self.handler._call_event("disconnect", self) #/ now will trigger a on_disconnect event
             
