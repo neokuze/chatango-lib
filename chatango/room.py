@@ -142,7 +142,7 @@ class Connection:
                 elif message.type == aiohttp.WSMsgType.ERROR:
                     logger.debug(f"[ws: {self._name}] Error from {message}")
                     raise WebSocketClosure
-            except (ConnectionResetError, WebSocketClosure, ServerTimeoutError
+            except (ConnectionResetError, WebSocketClosure, ServerTimeoutError,
                     ServerDisconnectedError, WebSocketError, asyncio.CancelledError) as e:
                 if isinstance(e, asyncio.CancelledError):
                     logger.debug("WebSocket listener task cancelled") 
