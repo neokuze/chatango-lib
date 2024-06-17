@@ -151,6 +151,7 @@ class Connection:
                     break 
             except (asyncio.TimeoutError, TimeoutError): #python 3.11+ for wait_for
                 await asyncio.sleep(5)
+                break #wait_for timeout cancel futures
         await self._disconnect()
         await self.handler._call_event("disconnect", self) #/ now will trigger a on_disconnect event
             
