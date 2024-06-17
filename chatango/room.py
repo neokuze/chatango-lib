@@ -81,7 +81,7 @@ class Connection:
             try:
                 self._session = aiohttp.ClientSession()
                 self._connection = await self._session.ws_connect(
-                    f"ws://{server}:8080/", origin="http://st.chatango.com"
+                    f"wss://{server}:8081/", origin="https://st.chatango.com"
                 )
                 self._connected = True
                 self._recv_task = asyncio.create_task(self._do_recv())

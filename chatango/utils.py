@@ -104,7 +104,7 @@ def get_aiohttp_session():
 
 
 async def get_token(user_name, passwd):
-    chatango, token = ["http://chatango.com/login", "auth.chatango.com"], None
+    chatango, token = ["https://chatango.com/login", "auth.chatango.com"], None
     payload = {
         "user_id": str(user_name).lower(),
         "password": str(passwd),
@@ -179,15 +179,15 @@ async def upload_image(self, path, return_url=False):
         dict(u=self.handler.username, p=self.handler.password),
         files,
     )
-    headers.update({"host": "chatango.com", "origin": "http://st.chatango.com"})
+    headers.update({"host": "chatango.com", "origin": "https://st.chatango.com"})
     async with get_aiohttp_session() as session:
-        async with session.post("http://chatango.com/uploadimg",data=data.encode("latin-1"), headers=headers) as resp:
+        async with session.post("https://chatango.com/uploadimg",data=data.encode("latin-1"), headers=headers) as resp:
             response = await resp.text()
             if "success" in response:
                 success = response.split(":", 1)[1]
     if success != None:
         if return_url:
-            url = "http://ust.chatango.com/um/{}/{}/{}/img/t_{}.jpg"
+            url = "https://ust.chatango.com/um/{}/{}/{}/img/t_{}.jpg"
             return url.format(
                 self.user.name[0], self.user.name[1], self.user.name, success
             )
