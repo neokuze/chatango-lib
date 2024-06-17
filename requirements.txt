@@ -1,1 +1,2 @@
 aiohttp # http requests and websockets
+aiofiles # for opening files 
