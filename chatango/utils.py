@@ -10,6 +10,8 @@ import urllib
 import logging
 from typing import Tuple
 
+import aiofiles
+
 # fmt: off
 specials = {
     'mitvcanal': 56, 'animeultimacom': 34, 'cricket365live': 21,
@@ -170,9 +172,10 @@ def multipart(data, files, boundary=None):
 async def upload_image(self, path, return_url=False):
     if self.user.isanon:
         return None
-    with open(path, mode="rb") as f:
+    async with aiofiles.open(path, mode="rb") as f:
+        content = await f.read()
         files = {
-            "filedata": {"filename": path, "content": f.read().decode("latin-1")}
+            "filedata": {"filename": path, "content": content.decode("latin-1")}
         }
     success =  None
     data, headers = multipart(
