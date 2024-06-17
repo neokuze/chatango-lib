@@ -129,11 +129,11 @@ class User:  # TODO a new format for users
 
     @property
     def _fp(self):
-        return "http://fp.chatango.com/profileimg"
+        return "https://fp.chatango.com/profileimg"
 
     @property
     def _ust(self):
-        return "http://ust.chatango.com/profileimg"
+        return "https://ust.chatango.com/profileimg"
 
     @property
     def name(self):
