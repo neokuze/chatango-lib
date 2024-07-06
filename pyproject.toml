@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "aiohttp>=3.9.5",
-    "aiofiles"
+    "aiofiles>=23.2.1"
 ]
 
 [project.urls]
