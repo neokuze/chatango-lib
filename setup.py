@@ -1,10 +1,7 @@
 from setuptools import setup
 import re
 
-requirements = []
-
-with open("requirements.txt") as f:
-    requirements = f.read().splitlines()
+requirements = ["aiohttp>=3.9.5", "aiofiles>=23.2.1"]
 
 version = ''
 with open('chatango/__init__.py') as f:
@@ -26,5 +23,5 @@ setup(name="chatango-lib",
       long_description=readme,
       long_description_content_type="text/markdown",
       install_requires=requirements,
-      python_requires=">=3.6"
+      python_requires=">=3.8"
       )

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools", "wheel"]	
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chatango"
+version = "1.4.4"
+requires-python = ">=3.8"
+description = "Another powerful async library for chatango."
+authors = [
+    { name = "Yado", email = "imneokuze@gmail.com" }
+]
+license =  { file = "LICENSE" }
+readme = "README.md"
+keywords = ["chatango-lib", "chatango"]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GPL3.0 License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "aiohttp>=3.9.5",
+    "aiofiles"
+]
+
+[project.urls]
+homepage = "https://neokuze.github.io/chatango-lib"
+repository = "https://github.com/neokuze/chatango-lib"
+
+[tool.setuptools]
+packages = ["chatango"]
