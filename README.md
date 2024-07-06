@@ -44,3 +44,6 @@ Similar usage to "megach.py" by Linkkg & "CherryBlossom" by Sweets. Sweets also 
 `$ pip install --user -r requirements.txt`
 
 `$ pip install --user .`
+
+### or pip install
+`$ pip install chatango-lib`
