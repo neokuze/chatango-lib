@@ -14,11 +14,11 @@ class config:
 class Bot(chatango.Client):
     async def on_connect(self, room):
         print("[info] Connected to {}".format(repr(room)))
-        await self.enable_bg()
+        await room.set_bg_mode(1) #enable premium bg.
 
     async def on_pm_connect(self, pm):
         print("[info] Connected to {}".format(repr(pm)))
-        await self.enable_bg()
+        await pm.enable_bg() #enable premium bg for pm
 
     async def on_disconnect(self, room):
         print("[info] Disconnected from {}".format(repr(room)))
