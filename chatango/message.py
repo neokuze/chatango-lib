@@ -151,14 +151,14 @@ async def _process_pm(room, args):
     user = User(name)
     mtime = float(args[3]) - room._correctiontime
     rawmsg = ":".join(args[5:])
-    body, n, f = _clean_message(format_videos(user.styles, rawmsg), pm=True)
+    body, n, f = _clean_message(rawmsg, pm=True)
     name_color = n or None
     font_size, font_color, font_face = _parseFont(f)
     msg = PMMessage()
     msg.room = room
     msg.user = user
     msg.time = mtime
-    msg.body = body
+    msg.body = pm_format(user, " "+body+" ")
     msg.raw = rawmsg
     msg.styles = msg.user._styles
     msg.styles._name_color = name_color
@@ -208,14 +208,14 @@ class Channel:
         await self.send_message(message)
 
 
-def format_videos(user: User, msg: str) -> str:
+def pm_format(user: User, msg: str) -> str:
     pattern = r'<i s="vid://yt:([A-Za-z0-9_-]{11})"[^>]*?>'
-
     def replace_match(match):
         video_id = match.group(1)
         url = f" https://www.youtube.com/watch?v={video_id}"
         return url
-
-    formatted_msg = re.sub(pattern, replace_match, msg)
+    msg = re.sub(pattern, replace_match, msg)
+    for x in re.findall("http[s]?://[\S]+?.jpg", msg):
+        msg = msg.replace(x, '<i s="%s" w="70.45" h="125"/>' % x)
     #w = f"<g x{user.styles._font_size}s{user.styles._font_color}=\"{user.styles._font_face}\">"
-    return formatted_msg
+    return msg
