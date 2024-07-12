@@ -97,6 +97,10 @@ class User:  # TODO a new format for users
         return self.styles._profile["about"]["location"]
 
     @property
+    def premium(self):
+        return self.styles._profile["about"]["premium"]
+    
+    @property
     def get_user_dir(self):
         if not self.isanon:
             return "/%s/%s/" % ("/".join((self.name * 2)[:2]), self.name)
@@ -251,6 +255,15 @@ class User:  # TODO a new format for users
                 )
                 self._styles._profile["about"]["location"] = location
 
+                last_premium_start = about.find("<d>")
+                last_premium_end = about.find("</d>", last_premium_start)
+                last_premium = (
+                    about[last_premium_start + 3 : last_premium_end]
+                    if last_premium_start != -1
+                    else ""
+                )
+                self._styles._profile["about"]["premium"] = last_premium
+                
                 last_change_start = about.find("<b>")
                 last_change_end = about.find("</b>", last_change_start)
                 last_change = (
