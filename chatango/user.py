@@ -98,7 +98,7 @@ class User:  # TODO a new format for users
 
     @property
     def premium(self):
-        return self.styles._profile["about"]["premium"]
+        return self.styles._profile["about"].get('premium', 0)
     
     @property
     def get_user_dir(self):
@@ -255,15 +255,17 @@ class User:  # TODO a new format for users
                 )
                 self._styles._profile["about"]["location"] = location
 
-                last_premium_start = about.find("<d>")
-                last_premium_end = about.find("</d>", last_premium_start)
-                last_premium = (
-                    about[last_premium_start + 3 : last_premium_end]
-                    if last_premium_start != -1
-                    else ""
-                )
-                self._styles._profile["about"]["premium"] = last_premium
-                
+                try:
+                    last_premium_start = about.find("<d>")
+                    last_premium_end = about.find("</d>", last_premium_start)
+                    last_premium = (
+                        about[last_premium_start + 3 : last_premium_end]
+                        if last_premium_start != -1
+                        else ""
+                    )
+                    self._styles._profile["about"]["premium"] = int(last_premium)
+                except: pass
+                    
                 last_change_start = about.find("<b>")
                 last_change_end = about.find("</b>", last_change_start)
                 last_change = (
