@@ -79,23 +79,27 @@ class Socket:
         Receive and process data from the socket
         """
         while self._recv:
-            data: bytes = await self._recv.read(2048)
-            if not self.connected:
-                break
-            if data:
-                data_str: str = data.decode()
-                if data_str == "\r\n\x00":
-                    await self._do_process("pong")
+            try:
+                data: bytes = await self._recv.read(2048)
+                if not self.connected:
+                    break
+                if data:
+                    data_str: str = data.decode()
+                    if data_str == "\r\n\x00":
+                        await self._do_process("pong")
+                    else:
+                        cmds = data_str.split("\r\n\x00")
+                        for cmd in cmds:
+                            if cmd != "":
+                                logger.debug(f" IN {cmd}")
+                                await self._do_process(cmd)
                 else:
-                    cmds = data_str.split("\r\n\x00")
-                    for cmd in cmds:
-                        if cmd != "":
-                            logger.debug(f" IN {cmd}")
-                            await self._do_process(cmd)
+                    await self._disconnect()
+                    break
+            except ConnectionResetError:
+                pass
             else:
-                await self._disconnect()
-                break
-            await asyncio.sleep(0.0001)
+                await asyncio.sleep(0.0001)
         await self.handler._call_event("pm_disconnect", self)
 
     async def _do_process(self, recv: str):
