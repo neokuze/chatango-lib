@@ -341,7 +341,7 @@ class Styles:
             "useimg": "0",
         }
         self._profile = dict(
-            about=dict(age="", last_change="", gender="?", location="", premium="", body=""),
+            about=dict(age="", last_change="", gender="?", location="", premium=0, body=""),
             full=dict(),
         )
 
