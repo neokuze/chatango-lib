@@ -712,9 +712,9 @@ class Room(Connection):
             if str(name) == "None":
                 isanon = True
                 if str(tname) != "None":
-                    name = tname
+                    name = "#"+tname
                 else:
-                    name = get_anon_name(contime, puid)
+                    name = "!"+get_anon_name(contime, puid)
             user = User(name, isanon=isanon, puid=puid)
             if user in ({self.owner} | self.mods):
                 user.setName(name)
@@ -732,9 +732,9 @@ class Room(Connection):
         isanon = False
         if name == "None":
             if tname != "None":
-                name = tname
+                name = "#"+tname
             else:
-                name = get_anon_name(contime, puid)
+                name = "!"+get_anon_name(contime, puid)
             isanon = True
         user = User(name, isanon=isanon, puid=puid, ip=unknown)
         user.setName(name)
@@ -912,6 +912,9 @@ class Room(Connection):
 
     async def _rcmd_miu(self, args):
         await self.handler._call_event("bg_reload", User(args[0]))
+        
+    async def _rcmd_groupflagstoggled(self, args):
+        print(args)
 
     async def _rcmd_delete(self, args):
         """Borrar un mensaje de mi vista actual"""

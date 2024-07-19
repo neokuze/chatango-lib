@@ -3,7 +3,12 @@ import time
 import enum
 from typing import Optional
 
-from .utils import get_anon_name, _clean_message, _parseFont, public_attributes
+from .utils import (
+    get_anon_name, 
+    _clean_message, 
+    _parseFont, 
+    public_attributes
+)
 from .user import User
 
 
@@ -107,11 +112,11 @@ async def _process(room, args):
             if n in ["None"]:
                 n = None
             if not isinstance(n, type(None)):
-                name = get_anon_name(n, puid)
+                name = "!"+get_anon_name(n, puid)
             else:
-                name = get_anon_name("", puid)
+                name = "!"+get_anon_name("", puid)
         else:
-            name = tname
+            name = "#"+tname
     else:
         if n:
             name_color = n
@@ -178,7 +183,7 @@ def message_cut(message, lenth):
 
 def mentions(body, room):
     t = []
-    for match in re.findall("(\s)?@([a-zA-Z0-9]{1,20})(\s)?", body):
+    for match in re.findall(r"([ \t\n\r\f\v])?@([a-zA-Z0-9]{1,20})([ \t\n\r\f\v])?", body):
         for participant in room.userlist:
             if participant.name.lower() == match[1].lower():
                 if participant not in t:
