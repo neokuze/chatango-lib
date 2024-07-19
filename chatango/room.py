@@ -912,9 +912,6 @@ class Room(Connection):
 
     async def _rcmd_miu(self, args):
         await self.handler._call_event("bg_reload", User(args[0]))
-        
-    async def _rcmd_groupflagstoggled(self, args):
-        print(args)
 
     async def _rcmd_delete(self, args):
         """Borrar un mensaje de mi vista actual"""
@@ -1026,3 +1023,5 @@ class Room(Connection):
     async def _rcmd_allunblocked(self, args):
         self._banlist.clear()
 
+    async def _rcmd_groupflagstoggled(self, args):
+        pass

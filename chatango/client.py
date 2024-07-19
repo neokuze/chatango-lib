@@ -37,8 +37,7 @@ class Client(EventHandler):
         self._handle_task_options(task)
 
     def _handle_task_options(self, task: Task):
-        self._tasks.insert(0, task)
-            
+        self._tasks.insert(0, task)   
 
     def _prune_tasks(self):
         self._tasks = [task for task in self._tasks if not task.done()]
