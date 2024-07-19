@@ -82,24 +82,28 @@ class User:  # TODO a new format for users
 
     @property
     def age(self):
-        return self.styles._profile["about"]["age"]
+        return self.styles._profile["about"].get('age', '')
+    
+    @property
+    def body(self):
+        return self.styles._profile["about"].get('body', '').replace('\r\n', '\n')
 
     @property
     def last_change(self):
-        return self.styles._profile["about"]["last_change"]
+        return self.styles._profile["about"].get('last_change', '')
 
     @property
     def gender(self):
-        return self.styles._profile["about"]["gender"]
+        return self.styles._profile["about"].get('gender', '')
 
     @property
     def location(self):
-        return self.styles._profile["about"]["location"]
-
+        return self.styles._profile["about"].get('location', '')
+    
     @property
     def premium(self):
         return self.styles._profile["about"].get('premium', 0)
-    
+
     @property
     def get_user_dir(self):
         if not self.isanon:
@@ -179,7 +183,9 @@ class User:  # TODO a new format for users
     def del_profile(self):
         if self.styles.profile:
             del self._styles._profile
-            self._styles._profile.update(dict(about={}, full={}))
+            self._styles._profile.update(dict(
+            about=dict(age="", last_change="", gender="?", location="", premium=0, body=""),
+            full=dict()))
 
     def addSessionId(self, room, sid):
         if room not in self._sids:
@@ -255,17 +261,6 @@ class User:  # TODO a new format for users
                 )
                 self._styles._profile["about"]["location"] = location
 
-                try:
-                    last_premium_start = about.find("<d>")
-                    last_premium_end = about.find("</d>", last_premium_start)
-                    last_premium = (
-                        about[last_premium_start + 3 : last_premium_end]
-                        if last_premium_start != -1
-                        else ""
-                    )
-                    self._styles._profile["about"]["premium"] = int(last_premium)
-                except: pass
-                    
                 last_change_start = about.find("<b>")
                 last_change_end = about.find("</b>", last_change_start)
                 last_change = (
@@ -274,6 +269,15 @@ class User:  # TODO a new format for users
                     else ""
                 )
                 self._styles._profile["about"]["last_change"] = last_change
+
+                last_premium_start = about.find("<d>")
+                last_premium_end = about.find("</d>", last_premium_start)
+                last_premium = (
+                    about[last_premium_start + 3 : last_premium_end]
+                    if last_premium_start != -1
+                    else ""
+                )
+                self._styles._profile["about"]["premium"] = int(last_premium)
 
                 if last_change:
                     age = abs(
