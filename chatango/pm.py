@@ -98,6 +98,8 @@ class Socket:
                     break
             except ConnectionResetError:
                 pass
+            except TimeoutError:
+                pass
             else:
                 await asyncio.sleep(0.0001)
         await self.handler._call_event("pm_disconnect", self)
