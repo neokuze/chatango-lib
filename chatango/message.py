@@ -7,7 +7,8 @@ from .utils import (
     get_anon_name, 
     _clean_message, 
     _parseFont, 
-    public_attributes
+    public_attributes,
+    Fonts
 )
 from .user import User
 
@@ -30,18 +31,6 @@ class MessageFlags(enum.IntFlag):
     CHANNEL_MOD = 1 << 15
 
 
-Fonts = {
-    "0": "arial",
-    "1": "comic",
-    "2": "georgia",
-    "3": "handwriting",
-    "4": "impact",
-    "5": "palatino",
-    "6": "papirus",
-    "7": "times",
-    "8": "typewriter",
-}
-
 
 class Message:
     def __init__(self):
@@ -51,7 +40,6 @@ class Message:
         self.body = str()
         self.raw = str()
         self.styles = None
-        self.channel: Optional[Channel] = None
 
     def __dir__(self):
         return public_attributes(self)
@@ -122,7 +110,7 @@ async def _process(room, args):
             name_color = n
         else:
             name_color = None
-    msg.user = User(name, ip=ip, isanon=isanon)
+    msg.user = User(name, ip=ip, isanon=isanon, puid=str(puid))
     msg.user._styles._name_color = name_color
     msg.styles = msg.user._styles
     msg.styles._font_size, msg.styles._font_color, msg.styles._font_face = _parseFont(
@@ -135,7 +123,6 @@ async def _process(room, args):
         if MessageFlags.PREMIUM in msg.flags:
             msg.styles._use_background = 1
     msg.mentions = mentions(msg.body, room)
-    msg.channel = Channel(msg.room, msg.user)
     ispremium = MessageFlags.PREMIUM in msg.flags
     if msg.user.ispremium != ispremium:
         evt = (
@@ -170,7 +157,6 @@ async def _process_pm(room, args):
     msg.styles._font_size = font_size
     msg.styles._font_color = font_color
     msg.styles._font_face = font_face
-    msg.channel = Channel(msg.room, msg.user)
     return msg
 
 
@@ -183,34 +169,12 @@ def message_cut(message, lenth):
 
 def mentions(body, room):
     t = []
-    for match in re.findall(r"(\s)?@([a-zA-Z0-9]{1,20})(\s)?", body):
+    for match in re.findall(r"([ \t\n\r\f\v])?@([a-zA-Z0-9]{1,20})([ \t\n\r\f\v])?", body):
         for participant in room.userlist:
             if participant.name.lower() == match[1].lower():
                 if participant not in t:
                     t.append(participant)
     return t
-
-
-class Channel:
-    def __init__(self, room, user):
-        self.is_pm = True if room.name == "<PM>" else False
-        self.user = user
-        self.room = room
-
-    def __dir__(self):
-        return public_attributes(self)
-
-    async def send_message(self, message, use_html=False):
-        messages = message_cut(message, self.room._maxlen)
-        for message in messages:
-            if self.is_pm:
-                await self.room.send_message(self.user.name, message, use_html=use_html)
-            else:
-                await self.room.send_message(message, use_html=use_html)
-
-    async def send_pm(self, message):
-        self.is_pm = True
-        await self.send_message(message)
 
 
 def pm_format(user: User, msg: str) -> str:

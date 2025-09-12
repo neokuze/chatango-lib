@@ -360,19 +360,22 @@ class Room(Connection):
             msg = msg.replace("\n", "\r").replace("~", "&#126;")
             for msg in message_cut(msg, self._maxlen):
                 message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
+                if self.user.isanon:# need it to correctly show the anon name.
+                    nc = str(self._connectiontime).split('.')[0][-4:]
+                    message = f"<n{nc}/>{msg}"
                 await self._send_command("bm", _id_gen(), str(message_flags), message)
 
     def set_font(
         self, name_color=None, font_color=None, font_size=None, font_face=None
     ):
         if name_color:
-            self._user._styles._name_color = str(name_color)
+            self._user._styles.set_name_color(name_color)
         if font_color:
-            self._user._styles._font_color = str(font_color)
+            self._user._styles.set_font_color(font_color)
         if font_size:
-            self._user._styles._font_size = int(font_size)
+            self._user._styles.set_font_size(int(font_size))
         if font_face:
-            self._user._styles._font_face = int(font_face)
+            self._user._styles.set_font_face(int(font_face))
 
     async def enable_bg(self):
         await self.set_bg_mode(1)
@@ -450,7 +453,6 @@ class Room(Connection):
 
     async def unban_user(self, user):
         rec = self.ban_record(user)
-        print("rec", rec)
         if rec:
             await self._raw_unban(rec.target.name, rec.ip, rec.unid)
             return True
@@ -591,7 +593,7 @@ class Room(Connection):
                 name_color="000000", font_color="000000", font_size=11, font_face=1
             )
 
-    async def _rcmd_ok(self, args):  # TODO
+    async def _rcmd_ok(self, args): 
         self.owner = User(args[0])
         self._puid = args[1]
         self._login_as = args[2]
@@ -600,9 +602,9 @@ class Room(Connection):
         self._correctiontime = int(float(self._connectiontime) - time.time())
         self._currentIP = args[5]
         self._flags = RoomFlags(int(args[7]))
-        if self._login_as == "C":
-            uname = get_anon_name(
-                str(self._correctiontime).split(".")[0][-4:].replace("-", ""),
+        if self._login_as == "C": # fail
+            uname = "!" + get_anon_name(
+                str(self._connectiontime),
                 self._puid,
             )
             self._user = User(uname, isanon=True, ip=self._currentIP)
@@ -613,8 +615,9 @@ class Room(Connection):
         for mod in args[6].split(";"):
             if len(mod.split(",")) > 1:
                 mod, power = mod.split(",")
-                self._mods[User(mod)] = ModeratorFlags(int(power))
-                self._mods[User(mod)].isadmin = (
+                _user = User(mod)
+                self._mods[_user] = ModeratorFlags(int(power))
+                self._mods[_user].isadmin = (
                     ModeratorFlags(int(power)) & AdminFlags != 0
                 )
         await self.handler._call_event("connect", self)
@@ -912,6 +915,9 @@ class Room(Connection):
 
     async def _rcmd_miu(self, args):
         await self.handler._call_event("bg_reload", User(args[0]))
+        
+    async def _rcmd_groupflagstoggled(self, args):
+        pass
 
     async def _rcmd_delete(self, args):
         """Borrar un mensaje de mi vista actual"""
@@ -1004,7 +1010,7 @@ class Room(Connection):
 
     async def _rcmd_logoutok(self, args, Force=False):
         """Me he desconectado, ahora usaré mi nombre de anon"""
-        name = get_anon_name(str(self._correctiontime).split(".")[0][-4:], self._puid)
+        name = "!" + get_anon_name(str(self._connectiontime).split(".")[0][-4:], self._puid)
         self._user = User(name, isanon=True, ip=self._currentIP)
         # TODO fail aquiCLOSE
         await self.handler._call_event("logout", self._user, "?")
@@ -1017,11 +1023,10 @@ class Room(Connection):
 
     async def _rcmd_reload_profile(self, args):
         user = User.get(args[0])
-        user._profile = None
+        user.styles._reload()
+        self.handler.add_task(user.get_main_profile())
         await self.handler._call_event("profile_reload", user)
         
     async def _rcmd_allunblocked(self, args):
         self._banlist.clear()
 
-    async def _rcmd_groupflagstoggled(self, args):
-        pass

@@ -34,10 +34,11 @@ class Client(EventHandler):
   
     def add_task(self, coro_or_future: Union[Coroutine, Future]):# TODO
         task = asyncio.create_task(coro_or_future)
-        self._handle_task_options(task)
+        self._handle_task(task)
 
-    def _handle_task_options(self, task: Task):
-        self._tasks.insert(0, task)   
+    def _handle_task(self, task: Task):
+        self._tasks.insert(0, task)
+            
 
     def _prune_tasks(self):
         self._tasks = [task for task in self._tasks if not task.done()]
@@ -113,7 +114,8 @@ class Client(EventHandler):
         if room:
             self.add_task(room.disconnect())
 
-    async def stop(self):# this must be async.
+    async def stop(self):# this must be async
+        self._task_loop.cancel()
         if self.pm:
             await self.pm.disconnect()
 

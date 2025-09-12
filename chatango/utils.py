@@ -42,8 +42,19 @@ tsweights = [
     [77, 116], [78, 116], [79, 116], [80, 116],
     [81, 116], [82, 116], [83, 116], [84, 116]
 ]
-# fmt: on
 
+# fmt: on
+Fonts = {
+    "0": "arial",
+    "1": "comic",
+    "2": "georgia",
+    "3": "handwriting",
+    "4": "impact",
+    "5": "palatino",
+    "6": "papirus",
+    "7": "times",
+    "8": "typewriter",
+}
 
 def get_server(group):
     """
@@ -183,7 +194,7 @@ async def upload_image(self, path, return_url=False):
         files,
     )
     headers.update({"host": "chatango.com", "origin": "https://st.chatango.com"})
-    async with get_aiohttp_session() as session:
+    async with aiohttp.ClientSession() as session:
         async with session.post("https://chatango.com/uploadimg",data=data.encode("latin-1"), headers=headers) as resp:
             response = await resp.text()
             if "success" in response:
@@ -261,22 +272,37 @@ def _id_gen():
     return "".join(random.choice(string.ascii_uppercase) for i in range(4)).lower()
 
 
-def get_anon_name(tssid: str, puid: str) -> str:
-    puid = puid.zfill(8)[4:8]
-    ts = str(tssid)
-    if not ts or len(ts) < 4:
-        ts = "3452"
+def get_anon_name(ts_id: str, anon_id: str) -> str:
+    """
+    !anon1365  connectiontime; 1757535675.82  puid; 9224679068825922
+
+    participant; participant; ['1', '50514112', '75730148', #puid
+                          'None', 'None', '', '1757533649.9'] #contime
+    3649+0148
+    3+0 = 3
+    6+1 = 7
+    4+4 = 8
+    9+8 = 17 (se toma el último número) = 7
+    Total 3787
+    """
+    assert isinstance(ts_id, str), "ts_id is not a string"
+    assert isinstance(anon_id, str), "anon_id is not a string"
+    #taked from cherryblossom.
+    if not ts_id or len(ts_id) < 4:
+        ts_id = "3452"
     else:
-        ts = ts.split(".")[0][-4:]
-    __reg5 = ""
-    __reg1 = 0
-    while __reg1 < len(puid):
-        __reg4 = int(puid[__reg1])
-        __reg3 = int(ts[__reg1])
-        __reg2 = str(__reg4 + __reg3)
-        __reg5 += __reg2[-1:]
-        __reg1 += 1
-    return "anon" + __reg5.zfill(4)
+        ts_id = ts_id.split(".")[0][-4:]
+        ts_id = ts_id.zfill(4)
+    if len(anon_id) < 4:
+        anon_id = anon_id.zfill(8)
+    elif len(anon_id) > 8:
+        anon_id = anon_id[:8]
+    number = anon_id[4:8]
+    result = [
+        str((int(a) + int(b)) % 10)
+        for a, b in zip(number, ts_id)]
+    return "anon"+"".join(result)
+
 
 
 def _fontFormat(text):
@@ -313,6 +339,12 @@ def _parseFont(f: str, pm=False) -> Tuple[str, str, str]:
     else:
         return match.groups()
 
+def _validate_hex(value: str) -> str:
+    if value.startswith("#"):
+        value = value[1:]
+    if re.fullmatch(r"[0-9a-fA-F]{1,6}", value):
+        return value.zfill(6).upper()
+    raise ValueError("color must be hexadecimal") 
 
 class Styles:
     def __init__(
@@ -323,7 +355,7 @@ class Styles:
         font_size=None,
         use_background=None,
     ):
-        self._name_color = name_color if name_color else str("000000")
+        self._name_color = str(name_color).zfill(6) if name_color else str("000000")
         self._font_color = font_color if font_color else str("000000")
         self._font_size = font_size if font_size else 11
         self._font_face = font_face if font_face else 0
@@ -340,10 +372,14 @@ class Styles:
             "tile": "0",
             "useimg": "0",
         }
+        self._reload()
+
+    def _reload(self):
         self._profile = dict(
             about=dict(age="", last_change="", gender="?", location="", premium=0, body=""),
             full=dict(),
         )
+
 
     def __dir__(self):
         return public_attributes(self)
@@ -384,27 +420,48 @@ class Styles:
         return self._use_background
 
     @property
-    def default(self):
+    def default(self) -> str:
         size = str(self.font_size)
         face = str(self.font_face)
         return f"<f x{size}{self.font_color}='{face}'>"
 
     @property
-    def name_color(self):
-        return self._name_color
+    def name_color(self) -> str:
+        return str(self._name_color).zfill(6) if self._name_color else "000000"
 
     @property
-    def font_color(self):
-        return self._font_color
+    def font_color(self) -> str:
+        return str(self._font_color).zfill(6) if self._font_color else "000000"
 
     @property
-    def font_size(self):
-        return self._font_size
+    def font_size(self) -> int:
+        return int(self._font_size) if self._font_size and 9 <= int(self._font_size) <= 22 else 11
 
     @property
-    def font_face(self):
-        return self._font_face
+    def font_face(self) -> int:
+        return int(self._font_face) if self._font_face and 0 <= int(self._font_face) <= 8 else 0
 
+    def set_name_color(self, value: str):
+        assert isinstance(value, str), "name_color must be str"
+        self._name_color =_validate_hex(value)
+
+    def set_font_color(self, value: str):
+        assert isinstance(value, str), "font_color must be str"
+        self._font_color = _validate_hex(value)
+
+    def set_font_size(self, value: int):
+        assert isinstance(value, int), "font_size must be int"
+        if 9 <= value <= 22:
+            self._font_size = value
+        else:
+            raise ValueError("font_size must be between 9 and 22")
+
+    def set_font_face(self, value: int):
+        assert isinstance(value, int), "font_face must be int"
+        if 0 <= value <= 8:
+            self._font_face = value
+        else:
+            raise ValueError("font_face must be between 0 and 8")
 
 def _convert_dict(src):
     r = {}

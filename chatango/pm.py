@@ -397,3 +397,9 @@ class PM(Socket):
             if friend in self._friends:
                 del self._friends[friend]
                 await self.handler._call_event("pm_contact_unfriend", args[0])
+
+    async def _rcmd_reload_profile(self, args):
+        user = User.get(args[0])
+        user.styles._reload()
+        self.handler.add_task(user.get_main_profile())
+        await self.handler._call_event("profile_reload", user)

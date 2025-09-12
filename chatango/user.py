@@ -183,9 +183,7 @@ class User:  # TODO a new format for users
     def del_profile(self):
         if self.styles.profile:
             del self._styles._profile
-            self._styles._profile.update(dict(
-            about=dict(age="", last_change="", gender="?", location="", premium=0, body=""),
-            full=dict()))
+            self._styles._profile.update(dict(about={}, full={}))
 
     def addSessionId(self, room, sid):
         if room not in self._sids:
@@ -240,6 +238,10 @@ class User:  # TODO a new format for users
                     pass
 
     async def get_main_profile(self):
+        """
+        @ info; fetch profile
+        iI recommend to run in background doin a client.add_task
+        """
         if not self.isanon:
             tasks = await make_requests(self._links[2:])
             items = tasks.get("mod1").result()
