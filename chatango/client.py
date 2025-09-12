@@ -115,7 +115,6 @@ class Client(EventHandler):
             self.add_task(room.disconnect())
 
     async def stop(self):# this must be async
-        self._task_loop.cancel()
         if self.pm:
             await self.pm.disconnect()
 
