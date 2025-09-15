@@ -98,7 +98,8 @@ class User:  # TODO a new format for users
 
     @property
     def location(self):
-        return self.styles._profile["about"].get('location', '')
+        loc = self.styles._profile["about"].get('location', '')
+        return loc.split('>')[1] if '>' in loc else loc
     
     @property
     def premium(self):
