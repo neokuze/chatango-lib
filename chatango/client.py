@@ -120,7 +120,7 @@ class Client(EventHandler):
 
         for room_name in self.rooms:
             room = self.get_room(room_name)
-            await room._disconnect()
+            await room.disconnect()
 
     async def enable_bg(self, active=True):
         """Enable background if available."""
