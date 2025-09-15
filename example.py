@@ -36,6 +36,13 @@ class Bot(chatango.Client):
               message.room.name, message.user.showname, ascii(message.body)[1:-1])
         if message.body.split()[0] in ["!a"]:
             await message.room.send_message(message.user.name, "test")
+            
+    async def on_room_denied(self, room): # remove denied rooms from self.rooms
+        if room.name in self.rooms:
+            self.leave_room(room.name)
+            if self.get_room(room.name):
+                del self.rooms[room.name]
+                print('[info] removed denied room: ', room.name)
 
        
 """
