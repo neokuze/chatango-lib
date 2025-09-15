@@ -38,7 +38,6 @@ class Client(EventHandler):
 
     def _handle_task(self, task: Task):
         self._tasks.insert(0, task)
-            
 
     def _prune_tasks(self):
         self._tasks = [task for task in self._tasks if not task.done()]
@@ -113,6 +112,7 @@ class Client(EventHandler):
         room = self.get_room(room_name)
         if room:
             self.add_task(room.disconnect())
+            del self.rooms[room.name]
 
     async def stop(self):# this must be async
         if self.pm:
