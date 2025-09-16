@@ -364,7 +364,7 @@ class Room(Connection):
                 message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{formt}</f>'
                 if self.user.isanon:# need it to correctly show the anon name.
                     nc = str(self._connectiontime).split('.')[0][-4:]
-                    message = f"<n{nc}/>{formt}"
+                    message = f"<n{nc}/>{msg}"
                 await self._send_command("bm", _id_gen(), str(message_flags), message)
 
     def set_font(
