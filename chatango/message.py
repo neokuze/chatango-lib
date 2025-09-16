@@ -100,8 +100,8 @@ async def _process(room, args):
             if n in ["None"]:
                 n = None
             if not isinstance(n, type(None)):
-                nc = n
-                for c in "abcdefABCDEF":
+                nc = n.lower()
+                for c in "abcdef": 
                     nc = nc.replace(c, "0")
                 name = "!"+get_anon_name(nc, puid)
             else:
