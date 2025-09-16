@@ -1,6 +1,7 @@
 import re
 import time
 import enum
+import string
 from typing import Optional
 
 from .utils import (
@@ -98,12 +99,12 @@ async def _process(room, args):
             if n in ["None"]:
                 n = None
             if not isinstance(n, type(None)):
-                nc = n.lower()
-                for c in "abcdef":# some bad messages have hexadecimal
-                    nc = nc.replace(c, "0") # so we just replaced eith 0
-                name = "!"+get_anon_name(nc, puid)# we just need first 4. if is valid.
-            else:
-                name = "!"+get_anon_name("", puid)
+                if n.isdigit():# we just need first 4. if is valid.
+                    name = "!"+get_anon_name(n, puid)
+                elif n and all(x in string.hexdigits for x in n):
+                    name = "!"+get_anon_name(str(int(n, 16)), puid)
+                else:
+                    name = "!"+get_anon_name("", puid)
         else:
             name = "#"+tname
     else:
