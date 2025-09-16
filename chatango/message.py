@@ -88,10 +88,8 @@ async def _process(room, args):
     msg.ip = ip
     msg.raw = body
     body, n, f = _clean_message(body)
-    strip_body = (
-        " ".join(body.split(" ")[:-1]) + " " + body.split(" ")[-1].replace("\n", "")
-    )
-    msg.body = strip_body.strip()
+    strip_body = body.replace("\n", "")
+    msg.body = strip_body
     name_color = None
     isanon = False
     if name == "":
