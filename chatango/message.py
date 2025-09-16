@@ -101,9 +101,9 @@ async def _process(room, args):
                 n = None
             if not isinstance(n, type(None)):
                 nc = n.lower()
-                for c in "abcdef": 
-                    nc = nc.replace(c, "0")
-                name = "!"+get_anon_name(nc, puid)
+                for c in "abcdef":# some bad messages have hexadecimal
+                    nc = nc.replace(c, "0") # so we just replaced eith 0
+                name = "!"+get_anon_name(nc, puid)# we just need first 4. if is valid.
             else:
                 name = "!"+get_anon_name("", puid)
         else:
@@ -191,3 +191,4 @@ def pm_format(user: User, msg: str) -> str:
         msg = msg.replace(x, '<i s="%s" w="70.45" h="125"/>' % x)
     #w = f"<g x{user.styles._font_size}s{user.styles._font_color}=\"{user.styles._font_face}\">"
     return msg
+

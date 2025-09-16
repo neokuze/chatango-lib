@@ -274,8 +274,6 @@ def _id_gen():
 
 def get_anon_name(ts_id: str, anon_id: str) -> str:
     """
-    !anon1365  connectiontime; 1757535675.82  puid; 9224679068825922
-
     participant; participant; ['1', '50514112', '75730148', #puid
                           'None', 'None', '', '1757533649.9'] #contime
     3649+0148

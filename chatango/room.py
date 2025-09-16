@@ -20,7 +20,8 @@ from .utils import (
     get_anon_name,
     _id_gen,
     public_attributes,
-    upload_image
+    upload_image,
+    _fontFormat
 )
 from .message import Message, MessageFlags, _process, message_cut
 from .user import User, ModeratorFlags, AdminFlags
@@ -359,10 +360,11 @@ class Room(Connection):
                 msg = html2.escape(msg, quote=False)
             msg = msg.replace("\n", "\r").replace("~", "&#126;")
             for msg in message_cut(msg, self._maxlen):
-                message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{msg}</f>'
+                formt = _fontFormat(msg)
+                message = f'<n{self.user.styles.name_color}/><f x{self.user.styles.font_size}{self.user.styles.font_color}="{self.user.styles.font_face}">{formt}</f>'
                 if self.user.isanon:# need it to correctly show the anon name.
                     nc = str(self._connectiontime).split('.')[0][-4:]
-                    message = f"<n{nc}/>{msg}"
+                    message = f"<n{nc}/>{formt}"
                 await self._send_command("bm", _id_gen(), str(message_flags), message)
 
     def set_font(
@@ -1010,7 +1012,7 @@ class Room(Connection):
 
     async def _rcmd_logoutok(self, args, Force=False):
         """Me he desconectado, ahora usaré mi nombre de anon"""
-        name = "!" + get_anon_name(str(self._connectiontime).split(".")[0][-4:], self._puid)
+        name = "!" + get_anon_name(str(self._connectiontime), self._puid)
         self._user = User(name, isanon=True, ip=self._currentIP)
         # TODO fail aquiCLOSE
         await self.handler._call_event("logout", self._user, "?")
